@@ -1,4 +1,4 @@
-const CACHE = 'degree-english-sprint-v4';
+const CACHE = 'degree-english-sprint-v4.1';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest', './assets/icon.png',
   './data/word-groups.js', './data/learning-content-v3.js', './data/offline-question-bank-v731.js'
