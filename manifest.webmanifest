@@ -1,0 +1,14 @@
+{
+  "name": "学位英语50题冲刺",
+  "short_name": "学位英语冲刺",
+  "description": "原创仿真题、错题强化、单词解释与本地学习记录",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#4966f3",
+  "icons": [
+    {"src":"assets/icon.png","sizes":"any","type":"image/png","purpose":"any maskable"}
+  ]
+}
