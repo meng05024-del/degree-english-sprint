@@ -1,10 +1,11 @@
-/* 学位英语 50 题冲刺站 v3：本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4：本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
   const STATE_KEY = 'degree_english_50_quiz_v1'; // 沿用旧键，保护未完成记录
   const HISTORY_KEY = 'degree_english_50_quiz_history_v2';
   const MASTERY_KEY = 'degree_english_quiz_mastery_v3';
+  const SETTINGS_KEY = 'degree_english_sprint_settings_v4';
   const app = document.querySelector('#app');
   const bank = Array.isArray(globalThis.offlineQuestionBankV731) ? globalThis.offlineQuestionBankV731 : [];
   const wordRows = typeof groups === 'object' ? Object.values(groups).flat() : [];
@@ -32,6 +33,21 @@
   const saveHistory = rows => localStorage.setItem(HISTORY_KEY, JSON.stringify(rows.slice(0, 10)));
   const readMastery = () => readJson(MASTERY_KEY, {});
   const saveMastery = rows => localStorage.setItem(MASTERY_KEY, JSON.stringify(rows));
+  const localDate = date => {
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  };
+  const readSettings = () => {
+    const saved = readJson(SETTINGS_KEY, {});
+    if (!saved.examDate) {
+      const date = new Date();
+      date.setDate(date.getDate() + 3);
+      saved.examDate = localDate(date);
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved));
+    }
+    return saved;
+  };
+  const saveSettings = settings => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   const nextSequence = () => Math.max(0, ...readHistory().map(row => Number(row.sequenceNo) || 0)) + 1;
   const find = id => bank.find(q => q.id === id);
   const stemKey = q => String(q?.q || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -45,11 +61,11 @@
 
   function migrateState(state) {
     if (!state || !Array.isArray(state.questionIds)) return null;
-    state.version = 3;
+    state.version = 4;
     state.answers ||= {};
     state.unknowns ||= {};
-    state.mode ||= 'exam';
-    state.title ||= state.mode === 'reinforce' ? '错题强化' : '50题冲刺';
+    if (!state.mode || state.mode === 'exam') state.mode = 'simulation';
+    state.title ||= state.mode === 'reinforce' ? '错题强化' : state.mode === 'practice' ? '冲刺练习' : state.mode === 'retest' ? '重点复测' : '模拟测评';
     state.index = Number.isInteger(state.index) ? state.index : 0;
     state.elapsedSec = Number.isFinite(state.elapsedSec) ? state.elapsedSec : 0;
     state.optionOrders ||= {};
@@ -69,7 +85,7 @@
     return distractors;
   }
 
-  function chooseQuestions() {
+  function chooseBlueprintQuestions() {
     const targets = [
       ['be动词',4], ['have/has',3], ['疑问句',4], ['否定句',3], ['冠词',3],
       ['名词复数',3], ['指示代词',3], ['代词',3], ['介词',4], ['情态动词',3],
@@ -95,10 +111,34 @@
     return shuffle(picked).slice(0, 50);
   }
 
+  function chooseAdaptiveQuestions() {
+    const records = readMastery();
+    const picked = [], ids = new Set(), stems = new Set();
+    const add = q => {
+      if (!q || ids.has(q.id) || stems.has(stemKey(q))) return false;
+      ids.add(q.id); stems.add(stemKey(q)); picked.push(q.id); return true;
+    };
+    const addMany = (source, count) => {
+      let added = 0;
+      for (const q of shuffle(source)) {
+        if (add(q) && ++added >= count) break;
+      }
+    };
+    const weak = bank.filter(q => ['不会','错误','易出错'].includes(masteryStatus(records[q.id])));
+    const unseen = bank.filter(q => masteryStatus(records[q.id]) === '未学习');
+    const mastered = bank.filter(q => masteryStatus(records[q.id]) === '正确');
+    addMany(weak, 25);
+    addMany(unseen, 15);
+    addMany(mastered, 10);
+    addMany(bank, 50 - picked.length);
+    return shuffle(picked).slice(0, 50);
+  }
+
   function masteryStatus(record) {
     if (!record) return '未学习';
     if (record.last === 'unknown') return '不会';
     if (record.last === 'wrong') return '错误';
+    if (record.last === 'mastered' || (record.correctStreak || 0) >= 2) return '正确';
     if (record.last === 'correct' && ((record.wrong || 0) > 0 || (record.unknown || 0) > 0)) return '易出错';
     if (record.last === 'correct') return '正确';
     return '未学习';
@@ -117,15 +157,19 @@
       const q = find(id);
       const chosen = state.answers[id];
       const unknown = Boolean(state.unknowns?.[id]);
-      const row = records[id] || {correct:0,wrong:0,unknown:0,last:'unlearned',lastAt:''};
+      const row = records[id] || {correct:0,wrong:0,unknown:0,correctStreak:0,last:'unlearned',lastAt:''};
+      row.correctStreak = Number(row.correctStreak) || 0;
       if (unknown) {
         row.unknown += 1;
-        row.last = chosen === q?.answer ? 'correct' : 'unknown';
+        row.correctStreak = 0;
+        row.last = 'unknown';
       } else if (chosen === q?.answer) {
         row.correct += 1;
-        row.last = 'correct';
+        row.correctStreak += 1;
+        row.last = row.correctStreak >= 2 ? 'mastered' : 'correct';
       } else {
         row.wrong += 1;
+        row.correctStreak = 0;
         row.last = 'wrong';
       }
       row.lastAt = nowIso();
@@ -182,11 +226,12 @@
 
   function exportArchive() {
     const payload = JSON.stringify({
-      archive:'DEGREE-ENGLISH-WEB-V3',
+      archive:'DEGREE-ENGLISH-WEB-V4',
       exportedAt:nowIso(),
       state:readState(),
       history:readHistory(),
-      mastery:readMastery()
+      mastery:readMastery(),
+      settings:readSettings()
     });
     const url = URL.createObjectURL(new Blob([payload], {type:'application/json'}));
     const anchor = document.createElement('a');
@@ -201,11 +246,12 @@
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result));
-        if (payload.archive !== 'DEGREE-ENGLISH-WEB-V3' || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
+        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
         if (!confirm('导入会用文件中的学习档案替换当前网页版记录，确定继续吗？')) return;
         if (payload.state) localStorage.setItem(STATE_KEY, JSON.stringify(payload.state));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
         localStorage.setItem(MASTERY_KEY, JSON.stringify(payload.mastery));
+        if (payload.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload.settings));
         alert('学习档案导入成功。');
         renderHome();
       } catch {
@@ -215,16 +261,16 @@
     reader.readAsText(file);
   }
 
-  function startSession(questionIds, mode = 'exam') {
+  function startSession(questionIds, mode = 'simulation') {
     leaveQuiz();
     const optionOrders = {};
     questionIds.forEach((id, index) => { optionOrders[id] = balancedOrder(find(id), index); });
     const state = {
-      version: 3,
+      version: 4,
       sessionId: `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       sequenceNo: nextSequence(),
       mode,
-      title: mode === 'reinforce' ? '错题强化' : '50题冲刺',
+      title: mode === 'reinforce' ? '错题强化' : mode === 'practice' ? '冲刺练习' : mode === 'retest' ? '重点复测' : '模拟测评',
       startedAt: nowIso(),
       finishedAt: null,
       elapsedSec: 0,
@@ -240,12 +286,55 @@
 
   function startQuiz() {
     leaveQuiz();
-    const questionIds = chooseQuestions();
+    const questionIds = chooseBlueprintQuestions();
     if (questionIds.length < 50) {
       alert(`当前可用的不重复题目只有 ${questionIds.length} 道，暂时不能生成完整试卷。`);
       return;
     }
-    startSession(questionIds, 'exam');
+    startSession(questionIds, 'simulation');
+  }
+
+  function startPractice() {
+    leaveQuiz();
+    const questionIds = chooseAdaptiveQuestions();
+    if (questionIds.length < 50) {
+      alert(`当前可用的不重复题目只有 ${questionIds.length} 道，暂时不能生成完整练习。`);
+      return;
+    }
+    startSession(questionIds, 'practice');
+  }
+
+  function chooseRetestFromReport(reportText) {
+    try {
+      const report = JSON.parse(reportText);
+      const weak = (report.wrongItems || []).map(item => item.category).filter(Boolean);
+      const ranked = Object.entries(report.categoryStats || {}).sort((a,b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total)).map(([cat]) => cat);
+      const categories = [...new Set([...weak, ...ranked])].slice(0, 4);
+      const excluded = new Set((report.allItems || []).map(item => item.id));
+      const picked = [], stems = new Set();
+      for (const q of shuffle(bank.filter(item => categories.includes(item.cat) && !excluded.has(item.id)))) {
+        if (stems.has(stemKey(q))) continue;
+        stems.add(stemKey(q)); picked.push(q.id);
+        if (picked.length === 10) break;
+      }
+      for (const q of shuffle(bank)) {
+        if (picked.length === 10) break;
+        if (excluded.has(q.id) || stems.has(stemKey(q))) continue;
+        stems.add(stemKey(q)); picked.push(q.id);
+      }
+      return picked;
+    } catch { return []; }
+  }
+
+  function modeLabel(mode) {
+    return mode === 'reinforce' ? '错题强化' : mode === 'practice' ? '冲刺练习' : mode === 'retest' ? '重点复测' : '模拟测评';
+  }
+
+  function examCountdown(examDate) {
+    const today = new Date(`${localDate(new Date())}T00:00:00`);
+    const target = new Date(`${examDate}T00:00:00`);
+    const days = Number.isFinite(target.getTime()) ? Math.ceil((target - today) / 86400000) : 3;
+    return {days, label:days > 0 ? `D-${days}` : days === 0 ? '考试当天' : `已过 ${Math.abs(days)} 天`};
   }
 
   function renderHome() {
@@ -254,13 +343,46 @@
     const history = readHistory();
     const active = state && !state.finishedAt;
     const mastery = masterySummary();
+    const settings = readSettings();
+    const countdown = examCountdown(settings.examDate);
+    const today = localDate(new Date());
+    const finishedToday = history.filter(row => row.status === '已交卷' && row.finishedAt && localDate(new Date(row.finishedAt)) === today);
+    const simulationDone = finishedToday.some(row => !row.mode || ['exam','simulation'].includes(row.mode));
+    const latestTodaySimulation = finishedToday.find(row => !row.mode || ['exam','simulation'].includes(row.mode));
+    let simulationReviewCount = 0;
+    try { simulationReviewCount = JSON.parse(latestTodaySimulation?.report || '{}').wrongItems?.length || 0; } catch {}
+    const reinforcementDone = finishedToday.some(row => row.mode === 'reinforce') || (simulationDone && simulationReviewCount === 0);
+    const retestDone = finishedToday.some(row => row.mode === 'retest');
     const latestWithWrong = history.find(row => {
       try { return row.status === '已交卷' && JSON.parse(row.report).wrongItems?.length; }
       catch { return false; }
     });
-    const historyHtml = history.length ? `<section class="card history-card"><div class="section-head"><div><p class="eyebrow dark">LOCAL HISTORY</p><h2>最近成绩</h2></div><span>${history.length} 套</span></div><div class="history-list">${history.map(row => `<article><div><strong>第 ${row.sequenceNo} 套 · ${row.status === '未完成' ? '未完成' : `${row.score} 分`}</strong><small>${esc(new Date(row.finishedAt).toLocaleString('zh-CN', {hour12:false}))} · 用时 ${formatTime(row.elapsedSec)}</small></div><button data-copy-history="${esc(row.sessionId)}">复制报告</button></article>`).join('')}</div></section>` : '';
-    app.innerHTML = `<section class="hero"><p class="eyebrow">ORIGINAL SIMULATION · LOCAL FIRST</p><h1>学位英语 50 题冲刺</h1><p>完整考试发现问题，错题强化负责把问题练会。题目属于原创仿真练习，不冒充历年真题。</p></section><section class="card"><h2>一次完整闭环</h2><div class="check"><div><b>1</b><span>完成 50 题，系统记录选择、不会标记、用时和答题位置。</span></div><div><b>2</b><span>错题后自动生成同知识点强化题，并持续更新掌握状态。</span></div><div><b>3</b><span>复制错题报告发给我，我继续讲规则并出针对题。</span></div></div>${active ? `<div class="warning">你有一套未完成的“${esc(state.title)}”：已答 ${Object.keys(state.answers).length}/${state.questionIds.length}，用时 ${formatTime(state.elapsedSec)}。</div><button class="primary" id="resume">继续第 ${state.index + 1} 题</button><button class="secondary" id="restart">保存旧进度并重新出题</button>` : `<button class="primary" id="start">开始一套 50 题</button>${latestWithWrong ? '<button class="secondary" id="reinforce-latest">根据最近错题强化</button>' : ''}`}<p class="save">记录默认只保存在当前浏览器；不会自动上传个人信息。</p></section><section class="card"><div class="section-head"><div><p class="eyebrow dark">MASTERY</p><h2>掌握情况</h2></div><span>774题</span></div><p class="hint">唯一状态，按“不会 → 错误 → 易出错 → 正确 → 未学习”统计。</p><div class="mastery-grid"><div><b>${mastery['不会']}</b><span>不会</span></div><div><b>${mastery['错误']}</b><span>错误</span></div><div><b>${mastery['易出错']}</b><span>易出错</span></div><div><b>${mastery['正确']}</b><span>正确</span></div><div><b>${mastery['未学习']}</b><span>未学习</span></div></div></section>${historyHtml}<section class="card"><p class="eyebrow dark">MOVE TO ANOTHER DEVICE</p><h2>学习档案</h2><p class="hint">换手机时先导出，再在新设备导入。无需账号，也不会上传到服务器。</p><button class="secondary" id="export-archive">导出学习档案</button><button class="secondary" id="import-archive">导入学习档案</button><input id="archive-file" type="file" accept="application/json,.json" hidden></section>`;
+    let todayAction = {id:'today-start', text:'开始今天的模拟测评', kind:'simulation'};
+    if (simulationDone && latestWithWrong && !reinforcementDone) todayAction = {id:'today-reinforce', text:'强化刚才最弱知识点', kind:'reinforce'};
+    else if (simulationDone && !retestDone) todayAction = {id:'today-retest', text:'开始 10 题重点复测', kind:'retest'};
+    else if (simulationDone && reinforcementDone && retestDone) todayAction = {id:'today-practice', text:'今日任务已完成 · 轻量巩固', kind:'practice'};
+    const doneCount = [simulationDone, reinforcementDone, retestDone].filter(Boolean).length;
+    const historyHtml = history.length ? `<section class="card history-card"><div class="section-head"><div><h2>最近成绩</h2><p class="hint compact">每套完整答题记录仅保存在当前浏览器</p></div><span>${history.length} 套</span></div><div class="history-list">${history.map(row => `<article><div><strong>第 ${row.sequenceNo} 套 · ${modeLabel(row.mode)} · ${row.status === '未完成' ? '未完成' : `${row.score} 分`}</strong><small>${esc(new Date(row.finishedAt).toLocaleString('zh-CN', {hour12:false}))} · 用时 ${formatTime(row.elapsedSec)}</small></div><button data-copy-history="${esc(row.sessionId)}">复制报告</button></article>`).join('')}</div></section>` : '';
+    app.innerHTML = `<section class="hero sprint-hero"><div><p class="eyebrow">考前冲刺计划</p><h1>${esc(countdown.label)} · 今天先完成一件事</h1><p>系统根据你的错题安排下一步。这里是原创仿真练习，不冒充官方真题。</p></div><label class="exam-date">考试日期<input id="exam-date" type="date" value="${esc(settings.examDate)}"></label></section><section class="card today-card"><div class="section-head"><div><h2>今日任务 ${doneCount}/3</h2><p class="hint compact">先测 → 补弱 → 再测；完成后就可以停</p></div><span>${active ? '进行中' : '约 30–45 分钟'}</span></div><div class="task-list"><div class="${simulationDone ? 'done' : ''}"><b>${simulationDone ? '✓' : '1'}</b><span><strong>模拟测评</strong><small>50 题，不显示中文和逐词提示</small></span></div><div class="${reinforcementDone ? 'done' : ''}"><b>${reinforcementDone ? '✓' : '2'}</b><span><strong>薄弱强化</strong><small>针对错题与不会的知识点</small></span></div><div class="${retestDone ? 'done' : ''}"><b>${retestDone ? '✓' : '3'}</b><span><strong>重点复测</strong><small>10 题确认是否真正掌握</small></span></div></div>${active ? `<div class="warning">你有一套未完成的“${esc(state.title)}”：已答 ${Object.keys(state.answers).length}/${state.questionIds.length}，用时 ${formatTime(state.elapsedSec)}。</div><button class="primary" id="resume">继续第 ${state.index + 1} 题</button><button class="secondary" id="restart">保存旧进度并重新出题</button>` : `<button class="primary" id="${todayAction.id}">${todayAction.text}</button>`}<p class="save">答案、题号和时间自动保存；“不会”不再扣考试分，只影响掌握度。</p></section>${active ? '<section class="card"><h2>先完成当前任务</h2><p class="hint">为避免覆盖未完成答案，其他训练入口会在本套交卷或保存旧进度后恢复。</p></section>' : `<section class="card mode-card"><h2>两种训练方式</h2><div class="mode-grid"><button id="start-practice"><strong>冲刺练习</strong><span>可看中文、逐词解释；第二套起优先抽薄弱项</span></button><button id="start"><strong>模拟测评</strong><span>关闭学习提示，只测当前真实答题水平</span></button></div>${latestWithWrong ? '<button class="secondary" id="reinforce-latest">继续最近错题强化</button>' : ''}</section>`}<section class="card"><div class="section-head"><div><h2>掌握情况</h2></div><span>${bank.length} 题</span></div><p class="hint">连续两次稳定答对后转为“正确”；标记不会或答错会重新进入重点复习。</p><div class="mastery-grid"><div><b>${mastery['不会']}</b><span>不会</span></div><div><b>${mastery['错误']}</b><span>错误</span></div><div><b>${mastery['易出错']}</b><span>易出错</span></div><div><b>${mastery['正确']}</b><span>正确</span></div><div><b>${mastery['未学习']}</b><span>未学习</span></div></div></section>${historyHtml}<details class="card archive-card"><summary>学习档案与换设备</summary><p class="hint">换手机时先导出，再在新设备导入。记录不会自动上传。</p><button class="secondary" id="export-archive">导出学习档案</button><button class="secondary" id="import-archive">导入学习档案</button><input id="archive-file" type="file" accept="application/json,.json" hidden></details>`;
+    const masteryHint = document.querySelector('.mastery-grid')?.previousElementSibling;
+    if (masteryHint) masteryHint.textContent = '曾经答错或标记不会的题，需要连续两次稳定答对才恢复为“正确”；再次答错会重新进入重点复习。';
     document.querySelector('#start')?.addEventListener('click', startQuiz);
+    document.querySelector('#start-practice')?.addEventListener('click', startPractice);
+    document.querySelector('#today-start')?.addEventListener('click', startQuiz);
+    document.querySelector('#today-practice')?.addEventListener('click', startPractice);
+    document.querySelector('#today-reinforce')?.addEventListener('click', () => {
+      const ids = chooseReinforcementFromReport(latestWithWrong?.report || '');
+      if (ids.length) startSession(ids, 'reinforce'); else startPractice();
+    });
+    document.querySelector('#today-retest')?.addEventListener('click', () => {
+      const source = latestWithWrong || history.find(row => row.status === '已交卷');
+      const ids = chooseRetestFromReport(source?.report || '');
+      if (ids.length) startSession(ids, 'retest'); else startPractice();
+    });
+    document.querySelector('#exam-date')?.addEventListener('change', event => {
+      saveSettings({...settings, examDate:event.target.value || settings.examDate});
+      renderHome();
+    });
     document.querySelector('#resume')?.addEventListener('click', () => renderQuiz(migrateState(readState())));
     document.querySelector('#restart')?.addEventListener('click', () => {
       if (confirm('当前未完成记录仍会保留到本机历史摘要中。确定重新出题吗？')) {
@@ -273,9 +395,9 @@
       if (ids.length) startSession(ids, 'reinforce');
       else alert('最近错题暂时无法生成新的同类题。');
     });
-    document.querySelector('#export-archive').addEventListener('click', exportArchive);
-    document.querySelector('#import-archive').addEventListener('click', () => document.querySelector('#archive-file').click());
-    document.querySelector('#archive-file').addEventListener('change', event => { if (event.target.files?.[0]) importArchive(event.target.files[0]); });
+    document.querySelector('#export-archive')?.addEventListener('click', exportArchive);
+    document.querySelector('#import-archive')?.addEventListener('click', () => document.querySelector('#archive-file')?.click());
+    document.querySelector('#archive-file')?.addEventListener('change', event => { if (event.target.files?.[0]) importArchive(event.target.files[0]); });
     document.querySelectorAll('[data-copy-history]').forEach(button => button.addEventListener('click', () => {
       const row = readHistory().find(item => item.sessionId === button.dataset.copyHistory);
       if (row?.report) copyText(row.report, '历史报告已复制。');
@@ -288,6 +410,8 @@
     history.unshift({
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
+      mode: state.mode,
+      title: state.title,
       finishedAt: nowIso(),
       elapsedSec: state.elapsedSec || 0,
       score: 0,
@@ -371,10 +495,12 @@
     const done = state.questionIds.filter(id => state.answers[id] !== undefined || state.unknowns[id]).length;
     const dots = state.questionIds.map((id, index) => `<button class="dot ${index === state.index ? 'active' : ''} ${state.unknowns[id] ? 'unknown' : state.answers[id] !== undefined ? 'done' : ''}" data-go="${index}">${index + 1}</button>`).join('');
     const words = questionWords(q);
-    const wordHelp = words.length ? `<details class="word-panel"><summary>逐个单词解释（${words.length}个）</summary><div class="word-chips">${words.map(word => `<button data-word="${esc(word.en.toLowerCase())}">${esc(word.en)}</button>`).join('')}</div><div id="word-detail" class="word-detail">点击上面的单词，查看中文和辅助读法。</div></details>` : '';
-    app.innerHTML = `<div class="top"><div><p class="eyebrow dark">${state.mode === 'reinforce' ? 'TARGETED REVIEW' : 'ORIGINAL SIMULATION'}</p><h1>${esc(state.title)} · ${state.index + 1}/${total}</h1></div><button id="home">暂存退出</button></div><section class="card"><div class="progress"><i style="width:${((state.index + 1) / total * 100).toFixed(1)}%"></i></div><div class="meta"><span>${esc(q.cat || '综合')} · ${esc(q.difficulty || '基础')}</span><span id="elapsed">${formatTime(state.elapsedSec)}</span></div><div class="question">${esc(q.q)}</div><div class="question-tools"><button id="speak">🔊 朗读英文</button>${q.translation ? `<details class="translation"><summary>中 查看中文与提示</summary><div>${esc(q.translation)}</div></details>` : ''}</div>${wordHelp}<button class="unknown-button ${state.unknowns[q.id] ? 'selected' : ''}" id="unknown">${state.unknowns[q.id] ? '✓ 已标记：这题不会' : '？这题不会，加入重点复习'}</button><div class="options">${options}</div><div class="nav"><button id="prev" ${state.index === 0 ? 'disabled' : ''}>上一题</button><button class="next" id="next">${state.index === total - 1 ? '检查并交卷' : '保存并到下一题'}</button></div><div class="grid">${dots}</div><p class="save">已自动保存 · 已完成 ${done}/${total} · 可随时退出后继续</p></section>`;
+    const showAids = state.mode !== 'simulation';
+    const wordHelp = showAids && words.length ? `<details class="word-panel"><summary>逐个单词解释（${words.length}个）</summary><div class="word-chips">${words.map(word => `<button data-word="${esc(word.en.toLowerCase())}">${esc(word.en)}</button>`).join('')}</div><div id="word-detail" class="word-detail">点击上面的单词，查看中文和辅助读法。</div></details>` : '';
+    const learningTools = showAids ? `<div class="question-tools"><button id="speak">🔊 朗读英文</button>${q.translation ? `<details class="translation"><summary>中 查看中文与提示</summary><div>${esc(q.translation)}</div></details>` : ''}</div>${wordHelp}` : '<p class="simulation-note">模拟测评已关闭中文、逐词解释和朗读辅助，交卷后可查看解析。</p>';
+    app.innerHTML = `<div class="top"><div><p class="eyebrow dark">${esc(modeLabel(state.mode))}</p><h1>${state.index + 1}/${total} · ${esc(q.cat || '综合')}</h1></div><button id="home">暂存退出</button></div><section class="card quiz-card"><div class="progress"><i style="width:${((state.index + 1) / total * 100).toFixed(1)}%"></i></div><div class="meta"><span>${esc(q.difficulty || '基础')} · ${state.mode === 'simulation' ? '真实作答' : '可用学习辅助'}</span><span id="elapsed">${formatTime(state.elapsedSec)}</span></div><div class="question">${esc(q.q)}</div>${learningTools}<button class="unknown-button ${state.unknowns[q.id] ? 'selected' : ''}" id="unknown">${state.unknowns[q.id] ? '✓ 已标记：不确定或不会' : '？不确定或不会，加入重点复习'}</button><div class="options">${options}</div><div class="nav"><button id="prev" ${state.index === 0 ? 'disabled' : ''}>上一题</button><button class="next" id="next">${state.index === total - 1 ? '检查并交卷' : '保存并到下一题'}</button></div><details class="answer-sheet"><summary>打开答题卡 · 已完成 ${done}/${total}</summary><div class="grid">${dots}</div></details><p class="save">答案与当前题号已自动保存，可随时退出后继续</p></section>`;
     startTimer(state);
-    document.querySelector('#speak').addEventListener('click', event => speakQuestion(q, event.currentTarget));
+    document.querySelector('#speak')?.addEventListener('click', event => speakQuestion(q, event.currentTarget));
     document.querySelectorAll('[data-original-index]').forEach(element => element.addEventListener('click', () => {
       state.answers[q.id] = Number(element.dataset.originalIndex);
       saveState(state);
@@ -424,9 +550,25 @@
         selectedLetter: selectedPosition < 0 ? '未答' : 'ABCD'[selectedPosition],
         correctLetter: correctPosition < 0 ? '?' : 'ABCD'[correctPosition],
         unknown: Boolean(state.unknowns?.[id]),
-        correct: selectedOriginal !== undefined && selectedOriginal === q?.answer && !state.unknowns?.[id]
+        answerCorrect: selectedOriginal !== undefined && selectedOriginal === q?.answer,
+        correct: selectedOriginal !== undefined && selectedOriginal === q?.answer,
+        needsReview: selectedOriginal === undefined || selectedOriginal !== q?.answer || Boolean(state.unknowns?.[id])
       };
     });
+  }
+
+  function diagnosticSummary(items) {
+    const rows = {};
+    items.forEach(item => {
+      const cat = item.q?.cat || '综合';
+      rows[cat] ||= {category:cat, correct:0, stable:0, unknown:0, total:0};
+      rows[cat].total += 1;
+      if (item.answerCorrect) rows[cat].correct += 1;
+      if (item.answerCorrect && !item.unknown) rows[cat].stable += 1;
+      if (item.unknown) rows[cat].unknown += 1;
+    });
+    return Object.values(rows).map(row => ({...row, lost:row.total - row.correct, review:row.total - row.stable, accuracy:Math.round(row.correct / row.total * 100)}))
+      .sort((a,b) => b.review - a.review || a.accuracy - b.accuracy || b.total - a.total || a.category.localeCompare(b.category, 'zh-CN'));
   }
 
   function buildReport(state, abandoned = false) {
@@ -444,10 +586,11 @@
       correct: item.correctLetter,
       correctText: item.q?.options?.[item.q?.answer] || '',
       isCorrect: item.correct,
+      needsReview: item.needsReview,
       point: item.q?.point || '',
       translation: item.q?.translation || ''
     }));
-    const wrongItems = allItems.filter(item => !item.isCorrect).map(item => {
+    const wrongItems = allItems.filter(item => item.needsReview).map(item => {
       const source = find(item.id);
       return {...item, explanation: source?.explain || ''};
     });
@@ -456,10 +599,12 @@
       const cat = item.q?.cat || '综合';
       categoryStats[cat] ||= {correct:0,total:0};
       categoryStats[cat].total += 1;
-      if (item.correct) categoryStats[cat].correct += 1;
+      if (item.answerCorrect) categoryStats[cat].correct += 1;
     });
+    const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
+    const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
     return JSON.stringify({
-      report: 'DEGREE-ENGLISH-WEB-V3.1',
+      report: 'DEGREE-ENGLISH-WEB-V4',
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
       mode: state.mode,
@@ -472,6 +617,9 @@
       answered: items.filter(item => item.selectedOriginal !== undefined || item.unknown).length,
       correctCount: correct,
       score: Math.round(correct / state.questionIds.length * 100),
+      stableCorrect,
+      uncertainCorrect,
+      masteryRate: Math.round(stableCorrect / state.questionIds.length * 100),
       categoryStats,
       allItems,
       wrongItems
@@ -503,13 +651,24 @@
   function renderFinish(state) {
     leaveQuiz();
     const items = resultItems(state);
-    const correct = items.filter(item => item.correct).length;
-    const wrong = items.filter(item => !item.correct);
+    const correct = items.filter(item => item.answerCorrect).length;
+    const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
+    const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
+    const wrong = items.filter(item => item.needsReview);
     const total = state.questionIds.length;
     const score = Math.round(correct / total * 100);
+    const masteryRate = Math.round(stableCorrect / total * 100);
     const report = buildReport(state);
-    const wrongHtml = wrong.length ? wrong.map(item => `<details class="wrong-item"><summary><span>第 ${item.n} 题 · ${esc(item.q?.cat || '综合')}</span><strong>${item.unknown ? '不会' : `${item.selectedLetter} → ${item.correctLetter}`}</strong></summary><div><p class="wrong-question">${esc(item.q?.q)}</p><p><b>你的答案：</b>${esc(item.selectedOriginal === undefined ? '未选择' : item.q.options[item.selectedOriginal])}${item.unknown ? '（标记不会）' : ''}</p><p><b>正确答案：</b>${esc(item.q?.options?.[item.q?.answer] || '')}</p><p><b>为什么：</b>${esc(item.q?.explain || item.q?.point || '请把报告发给我进一步讲解。')}</p></div></details>`).join('') : `<div class="success-box">${total} 题全部正确。仍建议把报告发给我检查是否存在蒙对题。</div>`;
-    app.innerHTML = `<section class="hero"><p class="eyebrow">FINISHED · SET ${state.sequenceNo}</p><h1>${esc(state.title)}已完成</h1><p>本套全部题目、选项顺序、你的选择、不会标记和错题解析都已写入本机记录。</p></section><section class="card"><p class="eyebrow dark">YOUR RESULT</p><div class="score">${score}<small> / 100</small></div><p class="hint">正确 ${correct} · 需巩固 ${total - correct} · 用时 ${formatTime(state.elapsedSec || 0)}</p><button class="primary" id="copy">复制错题报告，发给我逐题讲</button><button class="secondary" id="download">下载完整答题报告</button>${wrong.length ? '<button class="secondary" id="reinforce">生成本套错题同类强化</button>' : ''}</section><section class="card"><div class="section-head"><div><p class="eyebrow dark">WRONG ANSWERS</p><h2>本套需巩固 ${wrong.length} 道</h2></div></div><p class="hint">默认折叠。先自己想一次，再展开看答案和基础解析。</p><div class="wrong-list">${wrongHtml}</div></section><section class="card"><button class="primary" id="new">开始下一套 50 题</button><button class="secondary" id="home">返回首页与历史成绩</button></section>`;
+    const diagnostics = diagnosticSummary(items);
+    const weakest = diagnostics.filter(row => row.review > 0).slice(0, 3);
+    const weakHtml = weakest.map((row,index) => `<div><b>${index + 1}</b><span><strong>${esc(row.category)}</strong><small>正确 ${row.correct}/${row.total} · 需复习 ${row.review} 题</small></span><em>${row.accuracy}%</em></div>`).join('');
+    const history = readHistory();
+    const previous = history.find(row => row.sessionId !== state.sessionId && row.status === '已交卷' && modeLabel(row.mode) === modeLabel(state.mode));
+    const delta = previous ? score - Number(previous.score || 0) : null;
+    const wrongHtml = wrong.length ? wrong.map(item => `<details class="wrong-item"><summary><span>第 ${item.n} 题 · ${esc(item.q?.cat || '综合')}</span><strong>${item.unknown && item.answerCorrect ? '答对但不确定' : item.unknown ? '不会' : `${item.selectedLetter} → ${item.correctLetter}`}</strong></summary><div><p class="wrong-question">${esc(item.q?.q)}</p><p><b>你的答案：</b>${esc(item.selectedOriginal === undefined ? '未选择' : item.q.options[item.selectedOriginal])}${item.unknown ? '（标记不确定或不会）' : ''}</p><p><b>正确答案：</b>${esc(item.q?.options?.[item.q?.answer] || '')}</p><p><b>为什么：</b>${esc(item.q?.explain || item.q?.point || '请把报告发给我进一步讲解。')}</p></div></details>`).join('') : `<div class="success-box">${total} 题全部稳定答对，可以进入下一轮抽查。</div>`;
+    app.innerHTML = `<section class="hero result-hero"><p class="eyebrow">${esc(modeLabel(state.mode))}完成</p><h1>${score} 分${delta === null ? '' : ` · 比上次${delta >= 0 ? '高' : '低'} ${Math.abs(delta)} 分`}</h1><p>考试分只看答案；掌握度会另外识别“不确定但答对”的危险题。</p></section><section class="card result-card"><div class="result-metrics"><div><b>${score}</b><span>考试得分</span></div><div><b>${masteryRate}%</b><span>稳定掌握</span></div><div><b>${uncertainCorrect}</b><span>答对但不确定</span></div><div><b>${total - correct}</b><span>答错</span></div></div><p class="hint">确定答对 ${stableCorrect} · 用时 ${formatTime(state.elapsedSec || 0)}</p>${wrong.length ? '<button class="primary" id="reinforce">先把本次丢分点抢回来</button>' : ''}<button class="secondary" id="copy">复制完整报告，发给我逐题讲</button><button class="secondary" id="download">下载完整答题报告</button></section><section class="card"><div class="section-head"><div><h2>最需要先救的 ${weakest.length} 项</h2><p class="hint compact">按需复习题数和正确率排序</p></div></div><div class="weak-list">${weakHtml}</div></section><section class="card"><div class="section-head"><div><h2>本套需巩固 ${wrong.length} 道</h2></div></div><p class="hint">包含答错、未答及“答对但标记不确定”的题，默认折叠。</p><div class="wrong-list">${wrongHtml}</div></section><section class="card"><button class="secondary" id="new">再做一套模拟测评</button><button class="secondary" id="home">返回首页看今日任务</button></section>`;
+    const reinforceButton = document.querySelector('#reinforce');
+    if (reinforceButton) reinforceButton.textContent = total - correct > 0 ? '先把本次丢分点抢回来' : '先把本次不稳项练扎实';
     document.querySelector('#copy').addEventListener('click', () => copyText(report, `第 ${state.sequenceNo} 套错题报告已复制。回到聊天直接粘贴即可。`));
     document.querySelector('#download').addEventListener('click', () => {
       const url = URL.createObjectURL(new Blob([report], {type:'application/json'}));
