@@ -72,6 +72,33 @@ try {
   await page.evaluate(() => {
     const key='degree_english_50_quiz_v1';
     const state=JSON.parse(localStorage.getItem(key));
+    state.index=0;
+    state.questionIds[0]='v731-dialogue-4';
+    state.optionOrders['v731-dialogue-4']=[0,1,2,3];
+    localStorage.setItem(key,JSON.stringify(state));
+  });
+  await page.reload({waitUntil:'networkidle'});
+  await page.locator('#resume').click();
+  assert.match(await page.locator('.question').innerText(),/Do they have books/);
+  await page.locator('.word-panel summary').click();
+  assert.ok(await page.locator('.word-list>div').count()>=12);
+  assert.match(await page.locator('.word-list').innerText(),/books[\s\S]*原形：book/);
+  assert.match(await page.locator('.word-list').innerText(),/they[\s\S]*他们/);
+  await page.locator('.solution-panel summary').click();
+  assert.match(await page.locator('.solve-steps').innerText(),/Do 开头[\s\S]*they[\s\S]*do/);
+  assert.match(await page.locator('.correct-answer').innerText(),/选择 A[\s\S]*No, they do not/);
+  assert.equal(await page.locator('.option-reasons li').count(),4);
+  assert.match(await page.locator('.option-reasons li').filter({hasText:'Yes, it is.'}).innerText(),/Is this/);
+  await page.screenshot({path:'test-output/beginner-analysis-mobile.png',fullPage:true});
+  const wordPlay=page.locator('[data-word-speak]').first();
+  await wordPlay.click();
+  assert.match(await wordPlay.innerText(),/停止朗读/);
+  await page.locator('#speak').click();
+  assert.match(await page.locator('#speak').innerText(),/停止朗读/);
+  assert.equal((await wordPlay.innerText()).trim(),'🔊');
+  await page.evaluate(() => {
+    const key='degree_english_50_quiz_v1';
+    const state=JSON.parse(localStorage.getItem(key));
     state.index=state.questionIds.findIndex(id=>globalThis.offlineQuestionBankV731.find(q=>q.id===id)?.type==='listening');
     localStorage.setItem(key,JSON.stringify(state));
   });
@@ -83,18 +110,19 @@ try {
   await page.locator('#speak').click();
   assert.match(await page.locator('#speak').innerText(),/朗读英文/);
   await page.locator('.word-panel summary').click();
-  await page.locator('[data-word]').first().click();
-  await page.locator('#word-speak').click();
-  assert.match(await page.locator('#word-speak').innerText(),/停止朗读/);
+  const listeningWordPlay=page.locator('[data-word-speak]').first();
+  await listeningWordPlay.click();
+  assert.match(await listeningWordPlay.innerText(),/停止朗读/);
   await page.locator('#speak').click();
   assert.match(await page.locator('#speak').innerText(),/停止朗读/);
-  assert.match(await page.locator('#word-speak').innerText(),/朗读英文/);
+  assert.equal((await listeningWordPlay.innerText()).trim(),'🔊');
   await page.evaluate(() => localStorage.removeItem('degree_english_50_quiz_v1'));
   await page.reload({waitUntil:'networkidle'});
   await page.locator('#start').click();
   assert.equal(await page.locator('.dot').count(), 50);
   assert.equal(await page.locator('.translation').count(), 0);
   assert.equal(await page.locator('.word-panel').count(), 0);
+  assert.equal(await page.locator('.solution-panel').count(), 0);
   assert.match(await page.locator('.simulation-note').innerText(), /关闭中文/);
 
   const audit = await page.evaluate(() => {
@@ -174,7 +202,7 @@ try {
   assert.equal(wrongAudit.history,2);
   assert.equal(wrongAudit.wrong,50);
   assert.equal(wrongAudit.all,50);
-  assert.equal(wrongAudit.version,'DEGREE-ENGLISH-WEB-V4.2');
+  assert.equal(wrongAudit.version,'DEGREE-ENGLISH-WEB-V4.3');
   assert.equal(wrongAudit.complete,true);
   assert.equal(wrongAudit.fullComplete,true);
   assert.ok(wrongAudit.bytes<250000);

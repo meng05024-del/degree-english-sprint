@@ -1,4 +1,4 @@
-/* 学位英语考前冲刺站 v4.2：本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4.3：本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
@@ -25,7 +25,17 @@
     ['there','泽尔','那里；用于There be句型'],['three','斯里','三'],['to','特/图','向；到；不定式标志'],['together','特盖泽','一起'],
     ['tomorrow','特猫肉','明天'],['too','图','也；太'],['university','优尼沃斯提','大学'],['up','阿普','向上'],
     ['us','阿斯','我们（宾格）'],['useful','优斯佛','有用的'],['wait','韦特','等待'],['what','沃特','什么'],
-    ['where','韦尔','哪里'],['why','外','为什么'],['will','威尔','将；会'],['with','威兹','和；带有；用'],['yes','耶斯','是；对']
+    ['where','韦尔','哪里'],['why','外','为什么'],['will','威尔','将；会'],['with','威兹','和；带有；用'],['yes','耶斯','是；对'],
+    ['all','奥尔','全部；所有'],['arrive','额赖夫','到达'],['bag','拜格','包'],['bed','贝德','床'],['borrow','包柔','借入'],
+    ['bring','布令','带来'],['cancel','坎瑟尔','取消'],['classroom','克拉斯如姆','教室'],['close','克洛兹','关闭'],['coffee','考非','咖啡'],
+    ['David','得伊维德','戴维（人名）'],['drink','准克','喝；饮料'],['early','额利','早；早的'],['eat','伊特','吃'],['enough','伊纳夫','足够的'],
+    ['fifteen','菲夫听','十五'],['film','菲尔姆','电影'],['grammar','格拉默','语法'],['history','黑斯特瑞','历史'],['infer','因佛','推断'],
+    ['into','因图','进入……里面'],['later','雷特尔','稍后；后来'],['library','赖布瑞瑞','图书馆'],['math','麦斯','数学'],['may','梅伊','可以；可能'],
+    ['miss','米斯','错过；想念'],['near','尼尔','在……附近'],['nine','耐因','九'],['only','欧恩利','只；仅仅'],['plan','普兰','计划'],
+    ['practise','普拉克提斯','练习'],['prepare','普瑞佩尔','准备'],['reader','瑞德尔','读者'],['statement','斯得伊特门特','陈述；说法'],['ten','滕','十'],
+    ['than','赞（舌尖轻咬）','比'],['them','泽姆（舌尖轻咬）','他们；她们；它们（宾格）'],['thirty','瑟提','三十'],['told','偷欧德','告诉（tell的过去式）'],['took','吐克','拿；乘坐（take的过去式）'],
+    ['true','出如','正确的；真实的'],['visit','维兹特','参观；拜访'],['walk','沃克','步行'],['Wang','汪','王（人名）'],['watch','沃吃','观看'],
+    ['which','威吃','哪一个'],['who','胡','谁'],['would','乌德','将会；愿意（较委婉）']
   ];
   const wordRows = typeof groups === 'object' ? [...Object.values(groups).flat(), ...extraWordRows] : extraWordRows;
   const wordMap = new Map(wordRows.map(row => [String(row[0]).toLowerCase(), {en:row[0],read:row[1],cn:row[2]}]));
@@ -262,7 +272,7 @@
 
   function exportArchive() {
     const payload = JSON.stringify({
-      archive:'DEGREE-ENGLISH-WEB-V4.2',
+      archive:'DEGREE-ENGLISH-WEB-V4.3',
       exportedAt:nowIso(),
       state:readState(),
       history:readHistory(),
@@ -282,7 +292,7 @@
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result));
-        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
+        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
         if (!confirm('导入会用文件中的学习档案替换当前网页版记录，确定继续吗？')) return;
         if (payload.state) localStorage.setItem(STATE_KEY, JSON.stringify(payload.state));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
@@ -574,17 +584,81 @@
   }
 
   function questionWords(question) {
-    const source = `${question?.q || ''} ${(question?.options || []).join(' ')}`;
+    const prompt = String(question?.q || '').replace(/(^|\n)[AB]:/g, '$1');
+    const source = `${prompt} ${(question?.options || []).join(' ')}`;
     const found = [];
     for (const token of source.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || []) {
       const lower = token.toLowerCase();
-      const irregular = {went:'go',gone:'go',was:'be',were:'be',been:'be',did:'do',done:'do',had:'have',children:'child',men:'man',women:'woman'};
+      const irregular = {went:'go',gone:'go',was:'be',were:'be',been:'be',did:'do',done:'do',had:'have',children:'child',men:'man',women:'woman',took:'take',told:'tell',lost:'lose'};
       const possessive = lower.endsWith("'s") ? lower.slice(0,-2) : '';
-      const candidates = [lower, possessive, irregular[lower] || '', lower.endsWith('ies') ? `${lower.slice(0,-3)}y` : '', lower.endsWith('ing') ? lower.slice(0,-3) : '', lower.endsWith('ed') ? lower.slice(0,-2) : '', lower.endsWith('es') ? lower.slice(0,-2) : '', lower.endsWith('s') ? lower.slice(0,-1) : ''];
+      const candidates = [lower, possessive, irregular[lower] || '', lower.endsWith('ies') ? `${lower.slice(0,-3)}y` : '', lower.endsWith('ing') ? lower.slice(0,-3) : '', lower.endsWith('ing') ? `${lower.slice(0,-3)}e` : '', lower.endsWith('ed') ? lower.slice(0,-2) : '', lower.endsWith('ed') ? `${lower.slice(0,-1)}` : '', lower.endsWith('es') ? lower.slice(0,-2) : '', lower.endsWith('s') ? lower.slice(0,-1) : ''];
       const row = candidates.map(key => wordMap.get(key)).find(Boolean);
-      if (row && !found.some(item => item.en.toLowerCase() === row.en.toLowerCase())) found.push(row);
+      if (row && !found.some(item => item.surface.toLowerCase() === lower)) {
+        let form = '';
+        if (possessive && row.en.toLowerCase() === possessive) form = `${token} 表示“${row.cn.replace(/；.*/, '')}的”`;
+        else if (lower !== row.en.toLowerCase()) form = `${token} 是 ${row.en} 的变化形式`;
+        found.push({...row, surface:token, form});
+      }
     }
-    return found.slice(0, 14);
+    return found;
+  }
+
+  function questionCue(question) {
+    const text = String(question?.q || '').replace(/^A:\s*/i,'').split('\n')[0];
+    if (/^Do\s+they\b/i.test(text)) return '问句以 Do 开头，主语是 they，简短回答必须继续用 they，并用 do 或 do not。';
+    if (/^Does\s+she\b/i.test(text)) return '问句以 Does 开头，主语是 she，简短回答用 she does 或 she does not。';
+    if (/^Is\s+this\b/i.test(text)) return '问句以 Is this 开头，回答用 Yes, it is 或 No, it is not。';
+    if (/^Are\s+those\b/i.test(text)) return '问句以 Are those 开头，回答用 they are 或 they are not。';
+    if (/^Can\s+you\b/i.test(text)) return '问句以 Can you 开头，回答用 I can 或 I cannot。';
+    if (/^What\s+is\s+your\s+name/i.test(text)) return '这是询问姓名，回答应说明 My name is...。';
+    if (/^How\s+are\s+you/i.test(text)) return '这是问候，回答应说明自己的状态，如 I am fine。';
+    if (/^Where\s+are\s+you\s+from/i.test(text)) return '这是询问来自哪里，回答应使用 I am from...。';
+    if (/^What\s+time\s+is\s+it/i.test(text)) return '这是询问时间，回答应使用 It is + 时间。';
+    return question?.point ? `本题考查“${question.point}”。` : '先看题目问什么，再选择语法和意思都能接上的答案。';
+  }
+
+  function answerUse(option) {
+    const text = String(option || '');
+    if (/my name is/i.test(text)) return '用来回答“你叫什么名字”';
+    if (/i am fine/i.test(text)) return '用来回答“How are you”问候';
+    if (/i am from/i.test(text)) return '用来回答“你来自哪里”';
+    if (/it is eight|o.?clock/i.test(text)) return '用来回答“几点了”';
+    if (/yes,?\s*she does/i.test(text)) return '用来回答“Does she...”';
+    if (/no,?\s*they do not/i.test(text)) return '用来回答“Do they...”';
+    if (/yes,?\s*it is/i.test(text)) return '用来回答“Is this...”';
+    if (/no,?\s*they are not/i.test(text)) return '用来回答“Are those...”';
+    if (/yes,?\s*i can/i.test(text)) return '用来回答“Can you...”';
+    return '不能完整回应本题的问句结构或意思';
+  }
+
+  function categoryOptionHint(question, option) {
+    const value = String(option);
+    const cat = question?.cat || '';
+    if (cat === 'be动词') return value === 'am' ? 'am 只跟 I 搭配。' : value === 'is' ? 'is 跟 he、she、it 或单数主语搭配。' : value === 'are' ? 'are 跟 you、we、they 或复数主语搭配。' : 'be 是原形，不能在这种一般现在时肯定句中直接代替 am/is/are。';
+    if (cat === 'have/has') return value === 'has' ? 'has 用于 he、she、it 或单数主语。' : value === 'have' ? 'have 用于 I、you、we、they，并跟在 do/does 后。' : `${value} 不是本句表达“有”所需的形式。`;
+    if (cat === '疑问句') return `${value} 必须同时匹配主语的单复数和句中谓语；再检查后面的动词是否恢复原形。`;
+    if (cat === '否定句') return `${value} 要与主语匹配；do/does 后面的实义动词必须用原形。`;
+    if (cat === '冠词') return `${value} 是否正确取决于后面单词开头的发音以及是否特指。`;
+    if (cat === '名词复数') return `先看数量词；two、three、many 后通常需要可数名词复数。`;
+    if (cat === '介词') return `时间和地点介词常按固定搭配判断，不能逐字套用中文“在”。`;
+    if (cat === '情态动词') return `can、will、must、should 后直接接动词原形，不能加 s、ing 或 to。`;
+    if (cat === '指示代词') return `this/that 配单数，these/those 配复数，还要结合远近。`;
+    if (cat === '代词') return `看空格在句中的位置，区分主格、宾格和放在名词前的物主代词。`;
+    if (cat === '核心词汇' || cat === '词汇听读') return `这个选项的词义或读音与题目要求不一致。`;
+    if (cat === '句子翻译') return `这个选项与原句的主语、动作、时间或语序至少有一处不一致。`;
+    if (cat === '阅读理解') return `这个选项没有被原文对应句支持；阅读题应回原文定位，而不是凭印象。`;
+    return `这个选项不符合本题的语法规则、词义或上下文。`;
+  }
+
+  function solutionPanel(question, order) {
+    const correctPosition = order.indexOf(question.answer);
+    const rows = order.map((originalIndex, displayedIndex) => {
+      const option = question.options[originalIndex];
+      const isCorrect = originalIndex === question.answer;
+      const reason = isCorrect ? `正确。${question.explain || question.point || ''}` : question.type === 'dialogue' ? `${answerUse(option)}，与本题问法不对应。` : categoryOptionHint(question, option);
+      return `<li class="${isCorrect ? 'correct-reason' : ''}"><b>${'ABCD'[displayedIndex]} · ${esc(option)}</b><span>${esc(reason)}</span></li>`;
+    }).join('');
+    return `<details class="solution-panel"><summary>我还是不会：看逐步解题（会显示答案）</summary><div class="solve-steps"><p><b>① 先认题型：</b>${esc(questionCue(question))}</p><p><b>② 再抓考点：</b>${esc(question.point || question.cat || '句意与上下文')}</p><p class="correct-answer"><b>③ 所以选择 ${'ABCD'[correctPosition]}：</b>${esc(question.options[question.answer])}</p></div><ol class="option-reasons">${rows}</ol></details>`;
   }
 
   function renderQuiz(inputState) {
@@ -607,8 +681,8 @@
     const dots = state.questionIds.map((id, index) => `<button class="dot ${index === state.index ? 'active' : ''} ${state.unknowns[id] ? 'unknown' : state.answers[id] !== undefined ? 'done' : ''}" data-go="${index}">${index + 1}</button>`).join('');
     const words = questionWords(q);
     const showAids = state.mode !== 'simulation';
-    const wordHelp = showAids && words.length ? `<details class="word-panel"><summary>逐个单词解释（${words.length}个）</summary><div class="word-chips">${words.map(word => `<button data-word="${esc(word.en.toLowerCase())}">${esc(word.en)}</button>`).join('')}</div><div id="word-detail" class="word-detail">点击上面的单词，查看中文和辅助读法。</div></details>` : '';
-    const learningTools = showAids ? `<div class="question-tools"><button id="speak">🔊 朗读英文</button>${q.translation ? `<details class="translation"><summary>中 查看中文与提示</summary><div>${esc(q.translation)}</div></details>` : ''}</div>${wordHelp}` : '<p class="simulation-note">模拟测评已关闭中文、逐词解释和朗读辅助，交卷后可查看解析。</p>';
+    const wordHelp = showAids && words.length ? `<details class="word-panel"><summary>逐个单词解释（${words.length}个，一次看全）</summary><p class="word-intro">辅助读法只帮助入门，以右侧英文播放为准。</p><div class="word-list">${words.map(word => `<div><span><b>${esc(word.surface)}</b>${word.surface.toLowerCase() !== word.en.toLowerCase() ? `<small>原形：${esc(word.en)}</small>` : ''}</span><span>${esc(word.cn)}${word.form ? `<small>${esc(word.form)}</small>` : ''}</span><span>${esc(word.read)}</span><button data-word-speak="${esc(word.surface)}" aria-label="朗读 ${esc(word.surface)}">🔊</button></div>`).join('')}</div></details>` : '';
+    const learningTools = showAids ? `<div class="question-tools"><button id="speak">🔊 朗读英文</button>${q.translation ? `<details class="translation"><summary>中 查看中文与提示</summary><div>${esc(q.translation)}</div></details>` : ''}</div>${wordHelp}${solutionPanel(q, order)}` : '<p class="simulation-note">模拟测评已关闭中文、逐词解释和朗读辅助，交卷后可查看解析。</p>';
     app.innerHTML = `<div class="top"><div><p class="eyebrow dark">${esc(modeLabel(state.mode))}</p><h1>${state.index + 1}/${total} · ${esc(q.cat || '综合')}</h1></div><button id="home">暂存退出</button></div><section class="card quiz-card"><div class="progress"><i style="width:${((state.index + 1) / total * 100).toFixed(1)}%"></i></div><div class="meta"><span>${esc(q.difficulty || '基础')} · ${state.mode === 'simulation' ? '真实作答' : '可用学习辅助'}</span><span id="elapsed">${formatTime(state.elapsedSec)}</span></div><div class="question">${esc(q.q)}</div>${learningTools}<button class="unknown-button ${state.unknowns[q.id] ? 'selected' : ''}" id="unknown">${state.unknowns[q.id] ? '✓ 已标记：不确定或不会' : '？不确定或不会，加入重点复习'}</button><div class="options">${options}</div><div class="nav"><button id="prev" ${state.index === 0 ? 'disabled' : ''}>上一题</button><button class="next" id="next">${state.index === total - 1 ? '检查并交卷' : '保存并到下一题'}</button></div><details class="answer-sheet"><summary>打开答题卡 · 已完成 ${done}/${total}</summary><div class="grid">${dots}</div></details><p class="save">答案与当前题号已自动保存，可随时退出后继续</p></section>`;
     startTimer(state);
     document.querySelector('#speak')?.addEventListener('click', event => speakQuestion(q, event.currentTarget));
@@ -622,14 +696,7 @@
       if (!state.unknowns[q.id]) delete state.unknowns[q.id];
       saveState(state); renderQuiz(state);
     });
-    document.querySelectorAll('[data-word]').forEach(button => button.addEventListener('click', () => {
-      const word = wordMap.get(button.dataset.word);
-      const detail = document.querySelector('#word-detail');
-      if (word && detail) {
-        detail.innerHTML = `<strong>${esc(word.en)}</strong><span>中文：${esc(word.cn)}</span><span>辅助读法：${esc(word.read)}</span><button id="word-speak">🔊 朗读英文</button>`;
-        document.querySelector('#word-speak')?.addEventListener('click', event => speakQuestion({q:word.en,audioText:word.en}, event.currentTarget));
-      }
-    }));
+    document.querySelectorAll('[data-word-speak]').forEach(button => button.addEventListener('click', event => speakQuestion({q:button.dataset.wordSpeak,audioText:button.dataset.wordSpeak}, event.currentTarget)));
     document.querySelector('#prev').addEventListener('click', () => { state.index -= 1; saveState(state); renderQuiz(state); });
     document.querySelector('#next').addEventListener('click', () => {
       if (state.index < total - 1) {
@@ -718,7 +785,7 @@
     const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
     const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
     return JSON.stringify({
-      report: 'DEGREE-ENGLISH-WEB-V4.2',
+      report: 'DEGREE-ENGLISH-WEB-V4.3',
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
       mode: state.mode,
