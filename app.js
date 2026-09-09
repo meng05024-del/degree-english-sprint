@@ -1,4 +1,4 @@
-/* 学位英语考前冲刺站 v4.5：本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4.6：本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
@@ -6,6 +6,7 @@
   const HISTORY_KEY = 'degree_english_50_quiz_history_v2';
   const MASTERY_KEY = 'degree_english_quiz_mastery_v3';
   const SETTINGS_KEY = 'degree_english_sprint_settings_v4';
+  const NOTE_KEY = 'degree_english_notebook_v1';
   const app = document.querySelector('#app');
   const bank = Array.isArray(globalThis.offlineQuestionBankV731) ? globalThis.offlineQuestionBankV731 : [];
   const extraWordRows = [
@@ -291,6 +292,7 @@
       history:readHistory(),
       mastery:readMastery(),
       settings:readSettings()
+      ,notebook:readJson(NOTE_KEY,{})
     });
     const url = URL.createObjectURL(new Blob([payload], {type:'application/json'}));
     const anchor = document.createElement('a');
@@ -311,6 +313,8 @@
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
         localStorage.setItem(MASTERY_KEY, JSON.stringify(payload.mastery));
         if (payload.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload.settings));
+        if (payload.notebook && typeof payload.notebook === 'object' && !Array.isArray(payload.notebook)) localStorage.setItem(NOTE_KEY, JSON.stringify(payload.notebook));
+        if (!payload.state) localStorage.removeItem(STATE_KEY);
         alert('学习档案导入成功。');
         renderHome();
       } catch {
@@ -489,7 +493,7 @@
     requestAnimationFrame(() => window.scrollTo(0, restoreScroll ? analysisView.scrollY : 0));
   }
 
-  function renderQuestionAnalysis(id) {
+  function renderQuestionAnalysis(id, returnTo = null) {
     leaveQuiz();
     const question = find(id);
     if (!question) return renderAnalysisCenter(true);
@@ -498,10 +502,11 @@
     const order = analysisOrder(question);
     const similar = similarExample(question,id);
     app.innerHTML = `<header class="guide-header"><button id="analysis-back" aria-label="返回题库解析中心">←</button><div><p class="eyebrow dark">第 ${bank.findIndex(item => item.id === id) + 1} / ${bank.length} 题 · ${esc(question.cat || '综合')}</p><h1>单题完整解析</h1><p>${status} · ${esc(question.difficulty || '基础')} · ${esc(question.sourceLabel || '原创仿真题')}</p></div></header><section class="card analysis-question-card"><div class="analysis-question-head"><span>${esc(question.point || question.cat || '综合')}</span><b class="status-${status}">${status}</b></div><div class="question">${esc(question.q)}</div><button class="secondary analysis-speak" id="analysis-speak">🔊 朗读题目英文</button>${question.translation ? `<div class="analysis-translation"><b>整句中文与提示</b><p>${esc(question.translation)}</p></div>` : ''}${wordHelpPanel(question,'本题全部单词')}${solutionPanel(question,order)}${similar ? `<div class="example-box"><b>同考点再看一题</b><p>${esc(similar.q)}</p><p><strong>答案：</strong>${esc(similar.options[similar.answer])}</p><p><strong>解析：</strong>${esc(similar.explain || similar.point)}</p></div>` : ''}</section><section class="card"><button class="primary" id="analysis-back-bottom">返回题库解析中心</button></section>`;
-    const back = () => renderAnalysisCenter(true);
+    const back = returnTo || (() => renderAnalysisCenter(true));
     document.querySelector('#analysis-back').addEventListener('click', back);
     document.querySelector('#analysis-back-bottom').addEventListener('click', back);
     document.querySelector('#analysis-speak').addEventListener('click', event => speakQuestion(question,event.currentTarget));
+    attachStudyMarks(question);
     bindWordSpeech();
     window.scrollTo(0,0);
   }
@@ -544,7 +549,14 @@
       guideEntry.innerHTML = `<div><span>零基础全题解析</span><h2>${bank.length}题，全部可以查解析</h2><p>搜索或按题型查找；每题都有逐词、中文和发音、句子结构，以及 A–D 每项原因。</p></div><div class="guide-actions"><button id="open-analysis-center">打开${bank.length}题解析中心</button><button class="guide-minor" id="start-guided">开始解析练习</button></div>`;
       masteryCard.before(guideEntry);
       guideEntry.querySelector('#open-analysis-center')?.addEventListener('click', renderAnalysisCenter);
-      guideEntry.querySelector('#start-guided')?.addEventListener('click', startPractice);
+      guideEntry.querySelector('#start-guided')?.addEventListener('click', () => active ? renderQuiz(migrateState(readState())) : startPractice());
+      if (active) guideEntry.querySelector('#start-guided').textContent = '继续未完成练习';
+      const notebook = document.createElement('section'); notebook.className = 'card';
+      const entries = Object.values(readJson(NOTE_KEY,{}));
+      const due = entries.filter(row => row.kind !== 'favorite' && Number(row.due) <= Date.now()).length;
+      notebook.innerHTML = `<h2>收藏与记忆复习</h2><p class="hint">${due} 项到期复习 · ${entries.filter(row => row.kind === 'favorite').length} 道收藏题</p><button id="open-notebook" class="primary">打开我的复习本</button>`;
+      guideEntry.after(notebook);
+      notebook.querySelector('#open-notebook').onclick = () => renderNotebook();
     }
     document.querySelectorAll('.task-list > div').forEach((row,index) => {
       const title = row.querySelector('strong');
@@ -709,6 +721,14 @@
   function categoryOptionHint(question, option) {
     const value = String(option);
     const cat = question?.cat || '';
+    const chosen = String(question?.options?.[question.answer] || '');
+    if (cat === '核心词汇' || cat === '词汇听读') {
+      const meaning = wordMap.get(value.toLowerCase());
+      return `${meaning ? `${value} 的意思是“${meaning.cn}”。` : ''}本题要求对应的是“${chosen}”。${question.explain || ''}`;
+    }
+    if (cat === '疑问句' && /have\b/.test(question.q)) {
+      return `${question.q.replace(/___/g, chosen)}：have 在这里是“有”，一般现在时提问需要 do/does。${chosen === 'Does' ? '主语是一个人，使用 Does。' : '主语是复数，使用 Do。'}${value === 'Is' || value === 'Are' ? 'Is/Are 是 be 动词，不能直接这样放在主语前与 have 组成问句。' : `${value} 与这里的主语形式不匹配。`}`;
+    }
     if (cat === 'be动词') return value === 'am' ? 'am 只跟 I 搭配。' : value === 'is' ? 'is 跟 he、she、it 或单数主语搭配。' : value === 'are' ? 'are 跟 you、we、they 或复数主语搭配。' : 'be 是原形，不能在这种一般现在时肯定句中直接代替 am/is/are。';
     if (cat === 'have/has') return value === 'has' ? 'has 用于 he、she、it 或单数主语。' : value === 'have' ? 'have 用于 I、you、we、they，并跟在 do/does 后。' : `${value} 不是本句表达“有”所需的形式。`;
     if (cat === '疑问句') return `${value} 必须同时匹配主语的单复数和句中谓语；再检查后面的动词是否恢复原形。`;
@@ -743,7 +763,68 @@
   }
 
   function bindWordSpeech(root = document) {
+    root.querySelectorAll('[data-word-speak]').forEach(button => {
+      const mark = document.createElement('button');
+      mark.type = 'button'; mark.className = 'word-memory';
+      const key = 'word:' + button.dataset.wordSpeak.toLowerCase();
+      const row = questionWords({q:button.dataset.wordSpeak}).find(Boolean);
+      const refresh = () => { mark.textContent = readJson(NOTE_KEY,{})[key] ? '✓ 已记入复习' : '记不住'; };
+      refresh();
+      mark.addEventListener('click', () => { rememberItem(key,button.dataset.wordSpeak,row?.cn || '请结合原题查看词义','word'); refresh(); });
+      button.after(mark);
+    });
     root.querySelectorAll('[data-word-speak]').forEach(button => button.addEventListener('click', event => speakQuestion({q:button.dataset.wordSpeak,audioText:button.dataset.wordSpeak}, event.currentTarget)));
+  }
+
+  function rememberItem(key, title, answer, kind, questionId = '') {
+    const notes = readJson(NOTE_KEY,{});
+    notes[key] = {...notes[key], key, title, answer, kind, questionId, due:Date.now(), streak:0};
+    localStorage.setItem(NOTE_KEY,JSON.stringify(notes));
+  }
+
+  function attachStudyMarks(question) {
+    const target = document.querySelector('.analysis-question-card .question, .quiz-card .question');
+    if (!target) return;
+    const panel = document.createElement('div'); panel.className = 'study-marks';
+    const key = 'favorite:' + question.id;
+    panel.innerHTML = '<button class="favorite-toggle"></button><button class="point-memory">这个知识点记不住</button>';
+    target.after(panel);
+    const fav = panel.querySelector('.favorite-toggle');
+    const refresh = () => { fav.textContent = readJson(NOTE_KEY,{})[key] ? '★ 已收藏（点击取消）' : '☆ 收藏本题'; };
+    refresh();
+    fav.addEventListener('click', () => {
+      const notes = readJson(NOTE_KEY,{});
+      if (notes[key]) delete notes[key];
+      else notes[key] = {key,kind:'favorite',questionId:question.id,title:question.q,answer:question.explain,createdAt:Date.now()};
+      localStorage.setItem(NOTE_KEY,JSON.stringify(notes)); refresh();
+    });
+    panel.querySelector('.point-memory').addEventListener('click', event => {
+      rememberItem('point:'+question.id,question.point || question.q,question.explain,'point',question.id);
+      event.currentTarget.textContent = '✓ 已加入待复习';
+    });
+  }
+
+  function renderNotebook(mode = 'due') {
+    leaveQuiz();
+    const notes = readJson(NOTE_KEY,{});
+    const all = Object.values(notes).filter(row => row && typeof row.title === 'string');
+    const rows = all.filter(row => mode === 'favorites' ? row.kind === 'favorite' : row.kind !== 'favorite' && (mode === 'all' || Number(row.due) <= Date.now())).sort((a,b) => Number(a.due||0)-Number(b.due||0));
+    app.innerHTML = `<div class="top"><h1>收藏与记忆复习</h1><button id="notes-home">返回首页</button></div><section class="card"><p class="hint">先回想，再展开答案；“记住了”是自评，不会修改考试得分或把题目自动算成掌握。</p><div class="study-marks"><button data-note-mode="due">今日待复习</button><button data-note-mode="all">全部记不住</button><button data-note-mode="favorites">收藏</button></div><p>${mode === 'favorites' ? '收藏' : mode === 'all' ? '全部记忆项' : '已到复习时间'}：${rows.length} 项</p></section><div class="notebook-list">${rows.map(row => `<section class="card"><h2>${esc(row.title)}</h2><details><summary>回想后查看解释</summary><p>${esc(row.answer)}</p></details>${row.kind !== 'favorite' ? `<div class="study-marks"><button data-note-result="again" data-note-key="${esc(row.key)}">还是记不住</button><button data-note-result="remembered" data-note-key="${esc(row.key)}">这次记住了</button></div>` : ''}${row.questionId ? `<button class="secondary" data-note-question="${esc(row.questionId)}">打开原题解析</button>` : `<button class="secondary" data-note-speak="${esc(row.title)}">🔊 听英文</button>`}<button class="secondary" data-note-remove="${esc(row.key)}">${row.kind === 'favorite' ? '取消收藏' : '移除记忆标记'}</button></section>`).join('') || '<section class="card"><p>这里暂时没有内容。可到题库收藏题目，或点击单词旁的“记不住”。</p></section>'}</div>`;
+    document.querySelector('#notes-home').onclick = renderHome;
+    document.querySelectorAll('[data-note-mode]').forEach(button => button.onclick = () => renderNotebook(button.dataset.noteMode));
+    document.querySelectorAll('[data-note-result]').forEach(button => button.onclick = () => {
+      const current = readJson(NOTE_KEY,{}), row = current[button.dataset.noteKey];
+      if (!row) return;
+      row.streak = button.dataset.noteResult === 'remembered' ? (Number(row.streak)||0)+1 : 0;
+      row.due = Date.now() + (row.streak ? [1,3,7,14][Math.min(row.streak-1,3)] * 86400000 : 10 * 60000);
+      localStorage.setItem(NOTE_KEY,JSON.stringify(current)); renderNotebook(mode);
+    });
+    document.querySelectorAll('[data-note-remove]').forEach(button => button.onclick = () => {
+      const current = readJson(NOTE_KEY,{}); delete current[button.dataset.noteRemove]; localStorage.setItem(NOTE_KEY,JSON.stringify(current)); renderNotebook(mode);
+    });
+    document.querySelectorAll('[data-note-question]').forEach(button => button.onclick = () => renderQuestionAnalysis(button.dataset.noteQuestion, () => renderNotebook(mode)));
+    document.querySelectorAll('[data-note-speak]').forEach(button => button.onclick = () => speakQuestion({audioText:button.dataset.noteSpeak},button));
+    window.scrollTo(0,0);
   }
 
   function renderQuiz(inputState) {
@@ -780,6 +861,7 @@
       if (!state.unknowns[q.id]) delete state.unknowns[q.id];
       saveState(state); renderQuiz(state);
     });
+    attachStudyMarks(q);
     bindWordSpeech();
     document.querySelector('#prev').addEventListener('click', () => { state.index -= 1; saveState(state); renderQuiz(state); });
     document.querySelector('#next').addEventListener('click', () => {
@@ -915,6 +997,7 @@
 
   function similarExample(question, excludedId) {
     if (!question) return null;
+    if (question.type === 'dialogue') return bank.find(item => item.id !== excludedId && item.type === 'dialogue' && questionCue(item) === questionCue(question)) || null;
     const exact = bank.find(item => item.id !== excludedId && item.point === question.point && stemKey(item) !== stemKey(question));
     return exact || bank.find(item => item.id !== excludedId && item.cat === question.cat && stemKey(item) !== stemKey(question)) || null;
   }

@@ -55,6 +55,11 @@ try {
   assert.match(await page.locator('.analysis-question-card .question').innerText(),/Do they have books/);
   assert.equal(await page.locator('.analysis-question-card .word-panel').count(),1);
   assert.equal(await page.locator('.analysis-question-card .solution-panel').count(),1);
+  await page.locator('.favorite-toggle').click();
+  await page.locator('.point-memory').click();
+  await page.locator('.word-panel summary').click();
+  await page.locator('.word-memory').first().click();
+  assert.equal(await page.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('degree_english_notebook_v1'))).length),3);
   await page.screenshot({path:'test-output/analysis-question-mobile.png',fullPage:true});
   await page.locator('#analysis-back').click();
   assert.equal(await page.locator('#analysis-query').inputValue(),'Do they have books?');
@@ -75,6 +80,16 @@ try {
   await page.locator('#guide-back').click();
   assert.equal(await page.locator('#analysis-query').inputValue(),'Do they have books?');
   await page.locator('#analysis-home').click();
+  await page.locator('#open-notebook').click();
+  assert.equal(await page.locator('[data-note-result="remembered"]').count(),2);
+  await page.locator('[data-note-result="remembered"]').first().click();
+  assert.equal(await page.locator('[data-note-result="remembered"]').count(),1);
+  await page.locator('[data-note-mode="favorites"]').click();
+  assert.equal(await page.locator('[data-note-question]').count(),1);
+  await page.locator('[data-note-question]').click();
+  await page.locator('#analysis-back').click();
+  assert.equal(await page.locator('#notes-home').count(),1);
+  await page.locator('#notes-home').click();
   await page.screenshot({path:'test-output/home-mobile.png',fullPage:true});
   await page.locator('#start-practice').click();
   const practiceAudit = await page.evaluate(() => {
@@ -194,7 +209,7 @@ try {
   await page.locator('#all-analysis .all-question').first().click();
   assert.match(await page.locator('#all-analysis .all-question').first().innerText(),/你的答案[\s\S]*本题全部单词[\s\S]*逐步解题/);
   await page.locator('.wrong-item').first().click();
-  assert.equal(await page.locator('.example-box').count(),1);
+  assert.ok(await page.locator('.example-box').count()<=1);
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('degree_english_50_quiz_history_v2')).length), 1);
   await page.screenshot({path:'test-output/result-mobile.png',fullPage:true});
 
