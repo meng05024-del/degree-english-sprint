@@ -1,4 +1,4 @@
-/* 学位英语考前冲刺站 v4.6：本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4.7：先学题型，再做同类题；本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
@@ -7,6 +7,7 @@
   const MASTERY_KEY = 'degree_english_quiz_mastery_v3';
   const SETTINGS_KEY = 'degree_english_sprint_settings_v4';
   const NOTE_KEY = 'degree_english_notebook_v1';
+  const COURSE_KEY = 'degree_english_topic_course_v1';
   const app = document.querySelector('#app');
   const bank = Array.isArray(globalThis.offlineQuestionBankV731) ? globalThis.offlineQuestionBankV731 : [];
   const extraWordRows = [
@@ -45,6 +46,20 @@
   let activeSpeechButton = null;
   const ANALYSIS_PAGE_SIZE = 20;
   const analysisView = {query:'', category:'全部', status:'全部', page:0, scrollY:0};
+  const topicLessons = [
+    {id:'sentence',order:1,title:'先看懂一句话的骨架',subtitle:'主语、谓语、宾语到底是什么',cats:['代词','句子翻译'],goal:'先找到“谁，做什么，对谁或什么做”，不要一上来就背术语。',plain:'英语句子像排队：通常先说谁，再说做什么，最后补充对象、地点和时间。',terms:[['主语','谁或什么，是句子的主角','She works. 里的 She'],['谓语','主角做什么或是什么','She works. 里的 works'],['宾语','动作落到谁或什么上','I like English. 里的 English'],['动词原形','词典里的基本样子','go、have、work']],formula:['谁 + 做什么','谁 + 做什么 + 对谁/什么','地点、时间通常放在主要骨架后面'],signals:'先圈人称或名词，再找表示动作或状态的词。',example:['She studies English at night.','She＝她（主语）','studies＝学习（谓语）','English＝英语（宾语）','at night＝在晚上（时间）'],answer:'整句：她晚上学习英语。'},
+    {id:'be',order:2,title:'am / is / are 怎么选',subtitle:'be 动词不是三个毫无关系的词',cats:['be动词'],goal:'看到“是、在、处于某种状态”，先想到 be 动词。',plain:'am、is、are 都来自 be，意思常是“是、在、处于”。真正要选哪个，只看前面的主语。',terms:[['be动词','am、is、are 的总称','I am / he is / they are'],['单数','只有一个人或事物','he、she、Tom、the book'],['复数','两个或更多','we、they、the books']],formula:['I + am','he / she / it / 一个东西 + is','you / we / they / 多个东西 + are'],signals:'先把姓名或名词换成 he、she、it 或 they。',example:['Tom ___ a student.','Tom 是一个男生，可换成 he','he 后面用 is','所以填 is'],answer:'Tom is a student. 汤姆是一名学生。'},
+    {id:'have',order:3,title:'have / has 与“有”',subtitle:'先看谁有，再看有没有助动词',cats:['have/has'],goal:'分清 have、has，并理解 does 后为什么必须用 have。',plain:'have 和 has 都表示“有”。一般现在时肯定句里，一个他/她/它用 has；其他主语用 have。',terms:[['实义动词','本身有具体意思的动作词','have 有；go 去'],['第三人称单数','不是我和你，而且只有一个','he、she、it、Tom'],['助动词','帮助提问或否定的词','do、does、did']],formula:['I / you / we / they + have','he / she / it + has','Does + he/she/it + have...?'],signals:'看到 does，后面的 has 立刻恢复成原形 have。',example:['Does she ___ a car?','Does 已经负责提问','she 虽是第三人称单数','但 does 后必须接原形','所以填 have'],answer:'Does she have a car? 她有汽车吗？'},
+    {id:'question',order:4,title:'一般疑问句与简短回答',subtitle:'问句用什么开头，回答就用什么',cats:['疑问句','完成对话'],goal:'不靠翻译猜选项，先让问句和回答的主语、助动词对上。',plain:'能用“是/不是”回答的问题叫一般疑问句。Do 开头就用 do 回答，Is 开头就用 is，Can 开头就用 can。',terms:[['一般疑问句','通常可回答 Yes 或 No 的问题','Do they have books?'],['简短回答','不重复整句，只保留主语和关键动词','No, they do not.'],['人称对应','问 you 时回答者常说 I','Can you...? Yes, I can.']],formula:['Do they...? → Yes, they do. / No, they do not.','Is this...? → Yes, it is. / No, it is not.','Can you...? → Yes, I can. / No, I cannot.'],signals:'先看问句第一个词，再看主语；两个都要对应。',example:['A: Do they have books? B: ___','问句以 Do 开头','主语是 they','回答必须保留 they 和 do','所以选 No, they do not.'],answer:'No, they do not. 不，他们没有。'},
+    {id:'negative',order:5,title:'肯定句怎样变否定句',subtitle:'not 放哪里，后面的动词怎么变',cats:['否定句'],goal:'分清 be 动词否定和普通动作否定。',plain:'句中已有 am/is/are/can 时，直接在后面加 not；普通动作要请 do/does/did 来帮忙。',terms:[['肯定句','表示事实成立','She works.'],['否定句','表示不、没有','She does not work.'],['助动词','替普通动作承担时态和提问/否定','does、did']],formula:['am / is / are + not','can / will / must + not','do / does / did + not + 动词原形'],signals:'看到 does not、did not，后面不能再用 works、went。',example:['She works here. → 否定句','works 是普通动作','主语 she，一般现在时用 does not','works 恢复原形 work'],answer:'She does not work here. 她不在这里工作。'},
+    {id:'tense',order:6,title:'现在、过去、将来怎么判断',subtitle:'先找时间词，再决定动词形态',cats:['疑问句','否定句','句子翻译'],goal:'不死背“时态”两个字，先学会看动作发生在什么时候。',plain:'时态就是“动作发生的时间 + 动词对应的样子”。先圈时间词，再看主语和句型。',terms:[['一般现在时','经常、习惯或事实','every day、often'],['一般过去时','已经发生并结束','yesterday、last、ago'],['一般将来时','还没发生','tomorrow、will'],['现在进行时','此刻正在发生','now、look、listen']],formula:['经常：主语 + 动词原形/三单','过去：主语 + 动词过去式','将来：主语 + will + 动词原形','正在：am/is/are + 动词-ing'],signals:'yesterday/last/ago 看过去；tomorrow/will 看将来；now/look/listen 看正在。',example:['He ___ to school yesterday.','yesterday＝昨天，说明是过去','go 的过去式是 went','不是 goes，也不是 will go'],answer:'He went to school yesterday. 他昨天去上学了。'},
+    {id:'article',order:7,title:'a / an / the 怎么选',subtitle:'一个、任意一个，还是双方都知道的那个',cats:['冠词'],goal:'先判断是否特指，再听后面单词开头的发音。',plain:'a/an 表示“一个”，第一次提到或不特指；the 表示说话双方都知道的特定对象。',terms:[['冠词','放在名词前帮助限定范围','a、an、the'],['特指','明确是哪一个','the book on the desk'],['元音音素','开头读音像元音，不只看字母','an apple、an hour']],formula:['a + 辅音音素开头','an + 元音音素开头','the + 特定或再次提到的对象'],signals:'先问“是不是特定那个”，不是再判断开头读音。',example:['This is ___ apple.','这里第一次说一个苹果','apple 开头读元音','所以用 an'],answer:'This is an apple. 这是一个苹果。'},
+    {id:'plural',order:8,title:'名词单数和复数',subtitle:'数量词会直接告诉你名词要不要变',cats:['名词复数'],goal:'看到 two、many、some 后，知道可数名词通常要用复数。',plain:'能一个一个数的叫可数名词。数量超过一个，名词通常要变复数。',terms:[['名词','人、事物、地点或概念的名称','book、student、city'],['可数名词','能数一个、两个的名词','one book, two books'],['不可数名词','通常不直接一个个数','water、information']],formula:['one / a / an + 单数','two / many / several + 复数','some + 复数或不可数名词'],signals:'先圈数量词，再检查名词尾巴有没有 s/es 或不规则变化。',example:['There are three ___ .','three 表示三个','需要可数名词复数','child 的复数是不规则 children'],answer:'There are three children. 有三个孩子。'},
+    {id:'pronoun',order:9,title:'I / me / my 为什么不一样',subtitle:'同一个“我”，位置不同样子不同',cats:['代词','指示代词'],goal:'根据空格位置区分主格、宾格和物主代词。',plain:'I、me、my 都和“我”有关，但分工不同：谁做事用 I，动作落到我用 me，表示我的东西用 my。',terms:[['主格','放在动作前面做主语','I、he、she、we、they'],['宾格','放在动词或介词后','me、him、her、us、them'],['物主代词/限定词','表示谁的，my/your 后接名词','my book']],formula:['I like him. 我喜欢他。','He likes me. 他喜欢我。','This is my book. 这是我的书。'],signals:'空格后紧跟名词常选 my/your/his/her；空格在句首常选主格。',example:['She helps ___ .','helps 是动作','动作落在“我”身上','动词后用宾格 me'],answer:'She helps me. 她帮助我。'},
+    {id:'preposition',order:10,title:'in / on / at 与固定搭配',subtitle:'不要把所有“在”都翻成同一个词',cats:['介词'],goal:'掌握时间从大到小的基本规律，并记住地点搭配。',plain:'时间介词可先按范围判断：in 管大范围，on 管具体某天，at 管具体时刻；地点还要记常见搭配。',terms:[['介词','连接时间、地点、方式等关系','in、on、at、by'],['固定搭配','英语习惯一起出现的词','at night、by bus'],['时间词','告诉动作什么时候发生','Monday、May、eight']],formula:['in + 月/年/季节：in May','on + 星期/日期：on Monday','at + 时刻/小地点：at eight','by + 交通方式：by bus'],signals:'月和年用 in；某一天用 on；几点用 at。morning 前通常用 in，但 night 常用 at。',example:['We meet ___ eight ___ Monday.','eight 是具体时刻，用 at','Monday 是具体某天，用 on'],answer:'We meet at eight on Monday. 我们周一八点见。'},
+    {id:'modal',order:11,title:'can / will / must / should',subtitle:'情态动词后面永远先找动词原形',cats:['情态动词'],goal:'看见情态动词，不再给后面的动词加 s、ed 或 to。',plain:'情态动词给动作增加“能、将、必须、应该”等语气。它后面的动作词使用原形。',terms:[['情态动词','表达能力、可能、意愿或义务','can、will、must、should'],['动词原形','没有 s/ed/ing 的基本形式','go、study、be']],formula:['can + 动词原形','will + 动词原形','must + 动词原形','should + 动词原形'],signals:'无论主语是不是 he/she/it，can 后都是 go，不是 goes。',example:['She can ___ English.','can 是情态动词','后面必须用动词原形','所以填 speak'],answer:'She can speak English. 她会说英语。'},
+    {id:'reading',order:12,title:'翻译、对话和阅读怎么做',subtitle:'先定位证据，不要凭“看起来顺眼”选择',cats:['句子翻译','完成对话','阅读理解','核心词汇'],goal:'掌握三类综合题的固定答题顺序。',plain:'综合题不是每个词都会才可以做。先认主语、动作、否定、时间，再回原句找对应证据。',terms:[['关键词','决定句子核心信息的词','not、yesterday、because'],['定位','在原文中找到与题目对应的句子','人名、数字、时间'],['排除法','逐项找明显矛盾','主语、时间、肯否定不一致']],formula:['翻译：主语 → 动作 → 时间 → 肯否定','对话：问什么 → 用同类结构回答','阅读：题干关键词 → 原文定位 → 对照选项'],signals:'遇到生词先别停，判断它是否影响主语、动作、时间和答案方向。',example:['A: How are you? B: ___','How are you 是问候“你好吗”','回答要说自己的状态','My name is Tom 是回答姓名，不对应'],answer:'I am fine, thank you. 我很好，谢谢。'}
+  ];
 
   const nowIso = () => new Date().toISOString();
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
@@ -159,10 +174,13 @@
     };
     const addMany = (source, count) => {
       let added = 0;
-      const ranked = shuffle(source).sort((a,b) => severity[masteryStatus(records[a.id])] - severity[masteryStatus(records[b.id])]);
+      const ranked = shuffle(source).sort((a,b) => (severity[masteryStatus(records[a.id])] - severity[masteryStatus(records[b.id])]) || String(a.id).localeCompare(String(b.id)));
       for (const q of ranked) {
-        if (add(q) && ++added >= count) break;
+        if (!add(q)) continue;
+        added += 1;
+        if (added >= count) break;
       }
+      return added;
     };
     const targets = [
       ['核心词汇',5],['词汇听读',5],['句子翻译',5],['阅读理解',6],['完成对话',4],
@@ -286,13 +304,14 @@
 
   function exportArchive() {
     const payload = JSON.stringify({
-      archive:'DEGREE-ENGLISH-WEB-V4.5',
+      archive:'DEGREE-ENGLISH-WEB-V4.7',
       exportedAt:nowIso(),
       state:readState(),
       history:readHistory(),
       mastery:readMastery(),
       settings:readSettings()
       ,notebook:readJson(NOTE_KEY,{})
+      ,topicCourse:readCourseProgress()
     });
     const url = URL.createObjectURL(new Blob([payload], {type:'application/json'}));
     const anchor = document.createElement('a');
@@ -307,13 +326,14 @@
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result));
-        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3','DEGREE-ENGLISH-WEB-V4.4','DEGREE-ENGLISH-WEB-V4.5'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
+        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3','DEGREE-ENGLISH-WEB-V4.4','DEGREE-ENGLISH-WEB-V4.5','DEGREE-ENGLISH-WEB-V4.6','DEGREE-ENGLISH-WEB-V4.7'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
         if (!confirm('导入会用文件中的学习档案替换当前网页版记录，确定继续吗？')) return;
         if (payload.state) localStorage.setItem(STATE_KEY, JSON.stringify(payload.state));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
         localStorage.setItem(MASTERY_KEY, JSON.stringify(payload.mastery));
         if (payload.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload.settings));
         if (payload.notebook && typeof payload.notebook === 'object' && !Array.isArray(payload.notebook)) localStorage.setItem(NOTE_KEY, JSON.stringify(payload.notebook));
+        if (payload.topicCourse && typeof payload.topicCourse === 'object' && !Array.isArray(payload.topicCourse)) localStorage.setItem(COURSE_KEY, JSON.stringify(payload.topicCourse));
         if (!payload.state) localStorage.removeItem(STATE_KEY);
         alert('学习档案导入成功。');
         renderHome();
@@ -324,7 +344,7 @@
     reader.readAsText(file);
   }
 
-  function startSession(questionIds, mode = 'simulation') {
+  function startSession(questionIds, mode = 'simulation', customTitle = '') {
     leaveQuiz();
     const optionOrders = {};
     questionIds.forEach((id, index) => { optionOrders[id] = balancedOrder(find(id), index); });
@@ -333,7 +353,7 @@
       sessionId: `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       sequenceNo: nextSequence(),
       mode,
-      title: mode === 'reinforce' ? '错题强化' : mode === 'practice' ? '冲刺练习' : mode === 'retest' ? '重点复测' : '模拟测评',
+      title: customTitle || (mode === 'reinforce' ? '错题强化' : mode === 'practice' ? '冲刺练习' : mode === 'retest' ? '重点复测' : '模拟测评'),
       startedAt: nowIso(),
       finishedAt: null,
       elapsedSec: 0,
@@ -430,6 +450,75 @@
     return [
       ['模拟摸底','50题关闭提示，先找到真正薄弱项'],['薄弱强化','针对错题生成同考点变式'],['重点复测','10题确认是否真正掌握']
     ];
+  }
+
+  function readCourseProgress() {
+    return readJson(COURSE_KEY, {});
+  }
+
+  function saveCourseProgress(progress) {
+    localStorage.setItem(COURSE_KEY, JSON.stringify(progress));
+  }
+
+  function renderTopicCourses() {
+    leaveQuiz();
+    const progress = readCourseProgress();
+    const completed = topicLessons.filter(lesson => progress[lesson.id]?.completedAt).length;
+    const rows = topicLessons.map(lesson => {
+      const done = Boolean(progress[lesson.id]?.completedAt);
+      return `<button class="topic-row" data-topic="${lesson.id}"><b>${String(lesson.order).padStart(2,'0')}</b><span><small>${done ? '✓ 已学过' : '零基础题型课'}</small><strong>${esc(lesson.title)}</strong><em>${esc(lesson.subtitle)}</em></span><i>›</i></button>`;
+    }).join('');
+    app.innerHTML = `<header class="guide-header topic-header"><button id="topic-home" aria-label="返回首页">←</button><div><p class="eyebrow dark">先学明白，再做同类题</p><h1>零基础题型课</h1><p>12 个必考基础模块 · 已学 ${completed}/12</p></div></header><section class="card topic-intro"><span>推荐顺序</span><h2>不需要先背完所有单词</h2><p>每课先用中文讲“这类题到底在问什么”，再解释术语、公式和例题，最后做 5 道同类题。时间紧可以优先学前 6 课和介词课。</p><div class="topic-flow"><b>认题型</b><i>→</i><b>懂术语</b><i>→</i><b>看例题</b><i>→</i><b>练5题</b></div></section><section class="card topic-list-card"><div class="section-head"><div><h2>全部课程</h2><p class="hint compact">点击任意一课，不会改动未完成试卷</p></div><span>${completed}/12</span></div><div class="topic-list">${rows}</div></section>`;
+    document.querySelector('#topic-home').onclick = renderHome;
+    document.querySelectorAll('[data-topic]').forEach(button => button.onclick = () => renderTopicLesson(button.dataset.topic));
+    window.scrollTo(0,0);
+  }
+
+  function startTopicPractice(lesson) {
+    const active = migrateState(readState());
+    if (active && !active.finishedAt) {
+      alert(`你还有未完成的“${active.title}”，先继续完成，课程记录不会丢失。`);
+      renderQuiz(active);
+      return;
+    }
+    const records = readMastery();
+    const severity = {'不会':0,'错误':1,'易出错':2,'未学习':3,'正确':4};
+    const pool = bank.filter(question => lesson.cats.includes(question.cat)).sort((a,b) => severity[masteryStatus(records[a.id])] - severity[masteryStatus(records[b.id])]);
+    const ids = [], stems = new Set();
+    for (const question of pool) {
+      const stem = stemKey(question);
+      if (stems.has(stem)) continue;
+      stems.add(stem); ids.push(question.id);
+      if (ids.length === 5) break;
+    }
+    if (ids.length < 5) return alert('当前同类题不足 5 道，请先返回题库解析中心学习。');
+    startSession(ids, 'practice', `${lesson.title} · 5题引导练习`);
+  }
+
+  function renderTopicLesson(id) {
+    leaveQuiz();
+    const lesson = topicLessons.find(item => item.id === id);
+    if (!lesson) return renderTopicCourses();
+    const progress = readCourseProgress();
+    progress[id] = {...progress[id], openedAt:nowIso()};
+    saveCourseProgress(progress);
+    const termRows = lesson.terms.map(([term,meaning,example]) => `<div><b>${esc(term)}</b><span>${esc(meaning)}</span><small>${esc(example)}</small></div>`).join('');
+    const formulaRows = lesson.formula.map((row,index) => `<p><b>${index + 1}</b><span>${esc(row)}</span></p>`).join('');
+    const exampleRows = lesson.example.map((row,index) => `<li><b>${index === 0 ? '题目' : `第${index}步`}</b><span>${esc(row)}</span></li>`).join('');
+    const isDone = Boolean(progress[id]?.completedAt);
+    const active = migrateState(readState());
+    const practiceLabel = active && !active.finishedAt ? `先继续未完成的“${esc(active.title)}”` : '开始 5 题同类练习';
+    app.innerHTML = `<header class="guide-header topic-header"><button id="topic-back" aria-label="返回题型课">←</button><div><p class="eyebrow dark">第 ${lesson.order}/12 课 · ${lesson.cats.map(esc).join(' / ')}</p><h1>${esc(lesson.title)}</h1><p>${esc(lesson.subtitle)}</p></div></header><section class="card lesson-lead"><span>学完能解决什么</span><h2>${esc(lesson.goal)}</h2><p>${esc(lesson.plain)}</p></section><section class="card lesson-card"><div class="lesson-label">先把术语翻成大白话</div><h2>这几个词是什么意思</h2><div class="term-list">${termRows}</div></section><section class="card lesson-card"><div class="lesson-label">考场判断顺序</div><h2>只按这几步做</h2><div class="lesson-formulas">${formulaRows}</div><div class="lesson-signal"><b>看到什么先反应：</b>${esc(lesson.signals)}</div></section><section class="card lesson-card"><div class="lesson-label">老师带着做一题</div><h2>不要直接背答案</h2><ol class="worked-example">${exampleRows}</ol><div class="lesson-answer"><b>最后答案</b><span>${esc(lesson.answer)}</span></div></section><section class="card lesson-actions"><button class="secondary" id="lesson-understood">${isDone ? '✓ 已学过这课' : '我看懂了，标记已学'}</button><button class="primary" id="lesson-practice">${practiceLabel}</button><p>练习中仍可展开逐词解释和逐步解题；答错后会进入重点复习。</p></section>`;
+    document.querySelector('#topic-back').onclick = renderTopicCourses;
+    document.querySelector('#lesson-understood').onclick = event => {
+      const latest = readCourseProgress();
+      latest[id] = {...latest[id], openedAt:latest[id]?.openedAt || nowIso(), completedAt:nowIso()};
+      saveCourseProgress(latest);
+      event.currentTarget.textContent = '✓ 已学过这课';
+      event.currentTarget.classList.add('completed');
+    };
+    document.querySelector('#lesson-practice').onclick = () => startTopicPractice(lesson);
+    window.scrollTo(0,0);
   }
 
   function renderGoGuide(parent = 'home') {
@@ -544,6 +633,13 @@
     if (masteryHint) masteryHint.textContent = '曾经答错或标记不会的题，需要连续两次稳定答对才恢复为“正确”；再次答错会重新进入重点复习。';
     const masteryCard = document.querySelector('.mastery-grid')?.closest('.card');
     if (masteryCard) {
+      const courseProgress = readCourseProgress();
+      const learnedTopics = topicLessons.filter(lesson => courseProgress[lesson.id]?.completedAt).length;
+      const courseEntry = document.createElement('section');
+      courseEntry.className = 'card course-entry';
+      courseEntry.innerHTML = `<div class="course-entry-copy"><span>零基础第一入口</span><h2>先学题型，再做题</h2><p>从主语、谓语、be 动词开始，用大白话讲清 12 类必考基础；每课讲解后接 5 道同类题。</p><div class="course-progress"><i style="width:${Math.round(learnedTopics / topicLessons.length * 100)}%"></i></div><small>已学 ${learnedTopics}/${topicLessons.length} 课 · 时间紧先学前 6 课和介词</small></div><button id="open-topic-courses">打开题型课</button>`;
+      masteryCard.before(courseEntry);
+      courseEntry.querySelector('#open-topic-courses').onclick = renderTopicCourses;
       const guideEntry = document.createElement('section');
       guideEntry.className = 'card guide-entry all-guide-entry';
       guideEntry.innerHTML = `<div><span>零基础全题解析</span><h2>${bank.length}题，全部可以查解析</h2><p>搜索或按题型查找；每题都有逐词、中文和发音、句子结构，以及 A–D 每项原因。</p></div><div class="guide-actions"><button id="open-analysis-center">打开${bank.length}题解析中心</button><button class="guide-minor" id="start-guided">开始解析练习</button></div>`;
@@ -951,7 +1047,7 @@
     const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
     const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
     return JSON.stringify({
-      report: 'DEGREE-ENGLISH-WEB-V4.5',
+      report: 'DEGREE-ENGLISH-WEB-V4.7',
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
       mode: state.mode,
