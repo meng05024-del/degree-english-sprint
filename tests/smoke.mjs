@@ -38,6 +38,21 @@ try {
   assert.equal(contentAudit.blankTranslations,0);
   assert.equal(contentAudit.badListening,0);
   assert.equal(contentAudit.malformedOptions,0);
+  assert.equal(await page.locator('#open-go-guide').count(),1);
+  await page.locator('#open-go-guide').click();
+  assert.match(await page.locator('.guide-header h1').innerText(),/go 和 goes/);
+  assert.equal(await page.locator('.guide-card').count(),6);
+  assert.equal(await page.locator('[data-guide-speak]').count(),2);
+  assert.match(await page.locator('.answer-reveal').innerText(),/做完再看答案/);
+  await page.locator('[data-guide-speak="goes"]').click();
+  assert.equal(await page.evaluate(()=>window.__spoken),'goes');
+  assert.match(await page.locator('[data-guide-speak="goes"]').innerText(),/停止朗读/);
+  await page.evaluate(()=>window.__utterance.onend());
+  assert.match(await page.locator('[data-guide-speak="goes"]').innerText(),/goes/);
+  const guideMinTapHeight = await page.evaluate(() => Math.min(...[...document.querySelectorAll('button,summary')].filter(e=>e.offsetParent!==null).map(e=>e.getBoundingClientRect().height)));
+  assert.ok(guideMinTapHeight>=44);
+  await page.screenshot({path:'test-output/go-guide-mobile.png',fullPage:true});
+  await page.locator('#guide-back').click();
   await page.screenshot({path:'test-output/home-mobile.png',fullPage:true});
   await page.locator('#start-practice').click();
   const practiceAudit = await page.evaluate(() => {
@@ -159,7 +174,7 @@ try {
   assert.equal(wrongAudit.history,2);
   assert.equal(wrongAudit.wrong,50);
   assert.equal(wrongAudit.all,50);
-  assert.equal(wrongAudit.version,'DEGREE-ENGLISH-WEB-V4.1');
+  assert.equal(wrongAudit.version,'DEGREE-ENGLISH-WEB-V4.2');
   assert.equal(wrongAudit.complete,true);
   assert.equal(wrongAudit.fullComplete,true);
   assert.ok(wrongAudit.bytes<250000);
@@ -182,6 +197,13 @@ try {
   assert.match(await page.locator('#unknown').innerText(),/已标记/);
   await page.screenshot({path:'test-output/reinforcement-mobile.png',fullPage:true});
   await page.locator('#home').click();
+  const savedBeforeGuide = await page.evaluate(() => JSON.parse(localStorage.getItem('degree_english_50_quiz_v1')));
+  await page.locator('#open-go-guide').click();
+  await page.locator('#guide-done').click();
+  const savedAfterGuide = await page.evaluate(() => JSON.parse(localStorage.getItem('degree_english_50_quiz_v1')));
+  assert.equal(savedAfterGuide.sessionId,savedBeforeGuide.sessionId);
+  assert.equal(savedAfterGuide.index,savedBeforeGuide.index);
+  assert.match(await page.locator('#resume').innerText(),new RegExp(`第 ${savedBeforeGuide.index+1} 题`));
   assert.equal(await page.locator('#export-archive').count(),1);
   assert.equal(await page.locator('#import-archive').count(),1);
   const masteryAudit=await page.evaluate(() => {
@@ -191,7 +213,7 @@ try {
   assert.ok(masteryAudit.records>=50);
   assert.equal(masteryAudit.wrong,50);
 
-  console.log(JSON.stringify({status:'passed',contentAudit,practiceAudit,minTapHeight,audit,history:2,scoreChecks:[100,0],wrongReport:wrongAudit,reinforcement:reinforceAudit,mastery:masteryAudit}));
+  console.log(JSON.stringify({status:'passed',contentAudit,guideMinTapHeight,practiceAudit,minTapHeight,audit,history:2,scoreChecks:[100,0],wrongReport:wrongAudit,reinforcement:reinforceAudit,mastery:masteryAudit}));
 } finally {
   await browser.close();
 }

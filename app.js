@@ -1,4 +1,4 @@
-/* 学位英语考前冲刺站 v4.1：本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4.2：本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
@@ -262,7 +262,7 @@
 
   function exportArchive() {
     const payload = JSON.stringify({
-      archive:'DEGREE-ENGLISH-WEB-V4.1',
+      archive:'DEGREE-ENGLISH-WEB-V4.2',
       exportedAt:nowIso(),
       state:readState(),
       history:readHistory(),
@@ -282,7 +282,7 @@
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result));
-        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
+        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
         if (!confirm('导入会用文件中的学习档案替换当前网页版记录，确定继续吗？')) return;
         if (payload.state) localStorage.setItem(STATE_KEY, JSON.stringify(payload.state));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
@@ -405,6 +405,23 @@
     ];
   }
 
+  function renderGoGuide() {
+    leaveQuiz();
+    app.innerHTML = `<header class="guide-header"><button id="guide-back" aria-label="返回首页">←</button><div><p class="eyebrow dark">零基础语法急救 01</p><h1>go 和 goes 到底怎么选</h1><p>先认主语，再看时间和助动词</p></div></header>
+      <section class="card guide-lead"><span class="guide-badge">先记这一句</span><h2>意思一样，使用的人不一样</h2><p><b>go</b> 和 <b>goes</b> 都表示“去”。<b>go</b> 是动词原形；<b>goes</b> 是一般现在时里，主语为 he、she、it 或一个人/一个事物时的形式。</p><div class="audio-pair"><button data-guide-speak="go">🔊 go /ɡəʊ/</button><button data-guide-speak="goes">🔊 goes /ɡəʊz/</button></div></section>
+      <section class="card guide-card"><h2>第一步：看谁去</h2><div class="rule-split"><article><span>用 go</span><b>I / you / we / they</b><p>复数的人或事物也用 go。</p><em>I go to work every day.</em></article><article><span>用 goes</span><b>he / she / it</b><p>一个人名或一个单数事物也用 goes。</p><em>She goes to work every day.</em></article></div><div class="parse-line"><b>She</b><span>主语：谁</span><b>goes</b><span>谓语：做什么</span><b>to work</b><span>去哪里</span></div><p class="memory-line">口诀：我、你、我们、他们用 <b>go</b>；他、她、它、一个人用 <b>goes</b>。</p></section>
+      <section class="card guide-card"><h2>第二步：看到 does，后面必须用 go</h2><div class="formula-list"><p><span>肯定句</span>She <b>goes</b> to work.</p><p><span>疑问句</span><b>Does</b> she <b>go</b> to work?</p><p><span>否定句</span>She <b>does not go</b> to work.</p></div><div class="warning">不能写 <s>Does she goes</s>。因为 <b>does</b> 已经承担了第三人称单数变化，后面的动词恢复原形 <b>go</b>。</div></section>
+      <section class="card guide-card"><h2>第三步：先找时间词</h2><div class="form-table"><div><span>一般现在</span><b>go / goes</b><small>every day、usually、often</small></div><div><span>一般过去</span><b>went</b><small>yesterday、last、ago</small></div><div><span>将来或情态</span><b>will/can + go</b><small>tomorrow、will、can、must、should</small></div><div><span>正在发生</span><b>am/is/are going</b><small>now、look、listen</small></div></div><p class="hint">Did she <b>go</b>? 不能写 did she went；will、can、must、should 后面也都用原形 go。</p></section>
+      <section class="card guide-card"><h2>考试常见固定搭配</h2><div class="phrase-list"><p><b>go to work</b><span>去上班</span></p><p><b>go to school</b><span>去上学</span></p><p><b>go home</b><span>回家；home 前通常不加 to</span></p><p><b>go by bus</b><span>乘公交出行</span></p><p><b>go shopping</b><span>去购物</span></p></div></section>
+      <section class="card guide-card"><h2>马上自测5题</h2><ol class="mini-quiz"><li>I ___ to work every day.</li><li>She ___ to work every day.</li><li>Does Tom ___ to school?</li><li>Mary did not ___ there yesterday.</li><li>They will ___ home tomorrow.</li></ol><details class="answer-reveal"><summary>做完再看答案</summary><p><b>go、goes、go、go、go</b></p><p>第2题主语是 she，所以用 goes；第3题有 does、第4题有 did、第5题有 will，后面的动词全部恢复原形 go。</p></details></section>
+      <section class="card guide-card"><h2>你只需要按这个顺序判断</h2><div class="decision-steps"><p><b>1</b><span>先找主语：是 he/she/it/一个人吗？</span></p><p><b>2</b><span>再找 did、does、will、can 等提示词。</span></p><p><b>3</b><span>最后找 yesterday、every day、tomorrow 等时间词。</span></p></div><button class="primary" id="guide-done">我看懂了，返回做题</button></section>`;
+    const back = () => renderHome();
+    document.querySelector('#guide-back')?.addEventListener('click', back);
+    document.querySelector('#guide-done')?.addEventListener('click', back);
+    document.querySelectorAll('[data-guide-speak]').forEach(button => button.addEventListener('click', event => speakQuestion({q:button.dataset.guideSpeak,audioText:button.dataset.guideSpeak}, event.currentTarget)));
+    window.scrollTo(0,0);
+  }
+
   function renderHome() {
     leaveQuiz();
     const state = migrateState(readState());
@@ -436,6 +453,14 @@
     app.innerHTML = `<section class="hero sprint-hero"><div><p class="eyebrow">考前冲刺计划</p><h1>${esc(countdown.label)} · 今天先完成一件事</h1><p>系统根据你的错题安排下一步。这里是原创仿真练习，不冒充官方真题。</p></div><label class="exam-date">考试日期<input id="exam-date" type="date" value="${esc(settings.examDate)}"></label></section><section class="card today-card"><div class="section-head"><div><h2>今日任务 ${doneCount}/3</h2><p class="hint compact">先测 → 补弱 → 再测；完成后就可以停</p></div><span>${active ? '进行中' : '约 30–45 分钟'}</span></div><div class="task-list"><div class="${simulationDone ? 'done' : ''}"><b>${simulationDone ? '✓' : '1'}</b><span><strong>模拟测评</strong><small>50 题，不显示中文和逐词提示</small></span></div><div class="${reinforcementDone ? 'done' : ''}"><b>${reinforcementDone ? '✓' : '2'}</b><span><strong>薄弱强化</strong><small>针对错题与不会的知识点</small></span></div><div class="${retestDone ? 'done' : ''}"><b>${retestDone ? '✓' : '3'}</b><span><strong>重点复测</strong><small>10 题确认是否真正掌握</small></span></div></div>${active ? `<div class="warning">你有一套未完成的“${esc(state.title)}”：已答 ${Object.keys(state.answers).length}/${state.questionIds.length}，用时 ${formatTime(state.elapsedSec)}。</div><button class="primary" id="resume">继续第 ${state.index + 1} 题</button><button class="secondary" id="restart">保存旧进度并重新出题</button>` : `<button class="primary" id="${todayAction.id}">${todayAction.text}</button>`}<p class="save">答案、题号和时间自动保存；“不会”不再扣考试分，只影响掌握度。</p></section>${active ? '<section class="card"><h2>先完成当前任务</h2><p class="hint">为避免覆盖未完成答案，其他训练入口会在本套交卷或保存旧进度后恢复。</p></section>' : `<section class="card mode-card"><h2>两种训练方式</h2><div class="mode-grid"><button id="start-practice"><strong>冲刺练习</strong><span>可看中文、逐词解释；第二套起优先抽薄弱项</span></button><button id="start"><strong>模拟测评</strong><span>关闭学习提示，只测当前真实答题水平</span></button></div>${latestWithWrong ? '<button class="secondary" id="reinforce-latest">继续最近错题强化</button>' : ''}</section>`}<section class="card"><div class="section-head"><div><h2>掌握情况</h2></div><span>${bank.length} 题</span></div><p class="hint">连续两次稳定答对后转为“正确”；标记不会或答错会重新进入重点复习。</p><div class="mastery-grid"><div><b>${mastery['不会']}</b><span>不会</span></div><div><b>${mastery['错误']}</b><span>错误</span></div><div><b>${mastery['易出错']}</b><span>易出错</span></div><div><b>${mastery['正确']}</b><span>正确</span></div><div><b>${mastery['未学习']}</b><span>未学习</span></div></div></section>${historyHtml}<details class="card archive-card"><summary>学习档案与换设备</summary><p class="hint">换手机时先导出，再在新设备导入。记录不会自动上传。</p><button class="secondary" id="export-archive">导出学习档案</button><button class="secondary" id="import-archive">导入学习档案</button><input id="archive-file" type="file" accept="application/json,.json" hidden></details>`;
     const masteryHint = document.querySelector('.mastery-grid')?.previousElementSibling;
     if (masteryHint) masteryHint.textContent = '曾经答错或标记不会的题，需要连续两次稳定答对才恢复为“正确”；再次答错会重新进入重点复习。';
+    const masteryCard = document.querySelector('.mastery-grid')?.closest('.card');
+    if (masteryCard) {
+      const guideEntry = document.createElement('section');
+      guideEntry.className = 'card guide-entry';
+      guideEntry.innerHTML = '<div><span>零基础语法急救 01</span><h2>go 和 goes 到底怎么选？</h2><p>从主语、does/did、时间词到固定搭配，一页讲清楚。</p></div><button id="open-go-guide">打开讲解</button>';
+      masteryCard.before(guideEntry);
+      guideEntry.querySelector('#open-go-guide')?.addEventListener('click', renderGoGuide);
+    }
     document.querySelectorAll('.task-list > div').forEach((row,index) => {
       const title = row.querySelector('strong');
       const detail = row.querySelector('small');
@@ -693,7 +718,7 @@
     const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
     const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
     return JSON.stringify({
-      report: 'DEGREE-ENGLISH-WEB-V4.1',
+      report: 'DEGREE-ENGLISH-WEB-V4.2',
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
       mode: state.mode,
