@@ -1,4 +1,4 @@
-/* 学位英语考前冲刺站 v4.4：本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4.5：本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
@@ -42,6 +42,8 @@
   let timerHandle = 0;
   let speaking = false;
   let activeSpeechButton = null;
+  const ANALYSIS_PAGE_SIZE = 20;
+  const analysisView = {query:'', category:'全部', status:'全部', page:0, scrollY:0};
 
   const nowIso = () => new Date().toISOString();
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
@@ -188,6 +190,17 @@
     return summary;
   }
 
+  function analysisStatusSort(a, b, records, bankIndex) {
+    const order = {'不会':0,'错误':1,'易出错':2,'正确':3,'未学习':4};
+    const ar = records[a.id], br = records[b.id];
+    const as = masteryStatus(ar), bs = masteryStatus(br);
+    if (order[as] !== order[bs]) return order[as] - order[bs];
+    if (as === '不会') return (Number(br?.unknown)||0) - (Number(ar?.unknown)||0) || (Number(br?.wrong)||0) - (Number(ar?.wrong)||0) || a.id.localeCompare(b.id);
+    if (as === '错误' || as === '易出错') return (Number(br?.wrong)||0) - (Number(ar?.wrong)||0) || String(br?.lastAt||'').localeCompare(String(ar?.lastAt||'')) || a.id.localeCompare(b.id);
+    if (as === '正确') return String(ar?.lastAt||'').localeCompare(String(br?.lastAt||'')) || a.id.localeCompare(b.id);
+    return (bankIndex.get(a.id)||0) - (bankIndex.get(b.id)||0) || a.id.localeCompare(b.id);
+  }
+
   function updateMastery(state) {
     const records = readMastery();
     state.questionIds.forEach(id => {
@@ -272,7 +285,7 @@
 
   function exportArchive() {
     const payload = JSON.stringify({
-      archive:'DEGREE-ENGLISH-WEB-V4.4',
+      archive:'DEGREE-ENGLISH-WEB-V4.5',
       exportedAt:nowIso(),
       state:readState(),
       history:readHistory(),
@@ -292,7 +305,7 @@
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result));
-        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3','DEGREE-ENGLISH-WEB-V4.4'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
+        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3','DEGREE-ENGLISH-WEB-V4.4','DEGREE-ENGLISH-WEB-V4.5'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
         if (!confirm('导入会用文件中的学习档案替换当前网页版记录，确定继续吗？')) return;
         if (payload.state) localStorage.setItem(STATE_KEY, JSON.stringify(payload.state));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
@@ -415,7 +428,7 @@
     ];
   }
 
-  function renderGoGuide() {
+  function renderGoGuide(parent = 'home') {
     leaveQuiz();
     app.innerHTML = `<header class="guide-header"><button id="guide-back" aria-label="返回首页">←</button><div><p class="eyebrow dark">零基础语法急救 01</p><h1>go 和 goes 到底怎么选</h1><p>先认主语，再看时间和助动词</p></div></header>
       <section class="card guide-lead"><span class="guide-badge">先记这一句</span><h2>意思一样，使用的人不一样</h2><p><b>go</b> 和 <b>goes</b> 都表示“去”。<b>go</b> 是动词原形；<b>goes</b> 是一般现在时里，主语为 he、she、it 或一个人/一个事物时的形式。</p><div class="audio-pair"><button data-guide-speak="go">🔊 go /ɡəʊ/</button><button data-guide-speak="goes">🔊 goes /ɡəʊz/</button></div></section>
@@ -425,10 +438,71 @@
       <section class="card guide-card"><h2>考试常见固定搭配</h2><div class="phrase-list"><p><b>go to work</b><span>去上班</span></p><p><b>go to school</b><span>去上学</span></p><p><b>go home</b><span>回家；home 前通常不加 to</span></p><p><b>go by bus</b><span>乘公交出行</span></p><p><b>go shopping</b><span>去购物</span></p></div></section>
       <section class="card guide-card"><h2>马上自测5题</h2><ol class="mini-quiz"><li>I ___ to work every day.</li><li>She ___ to work every day.</li><li>Does Tom ___ to school?</li><li>Mary did not ___ there yesterday.</li><li>They will ___ home tomorrow.</li></ol><details class="answer-reveal"><summary>做完再看答案</summary><p><b>go、goes、go、go、go</b></p><p>第2题主语是 she，所以用 goes；第3题有 does、第4题有 did、第5题有 will，后面的动词全部恢复原形 go。</p></details></section>
       <section class="card guide-card"><h2>你只需要按这个顺序判断</h2><div class="decision-steps"><p><b>1</b><span>先找主语：是 he/she/it/一个人吗？</span></p><p><b>2</b><span>再找 did、does、will、can 等提示词。</span></p><p><b>3</b><span>最后找 yesterday、every day、tomorrow 等时间词。</span></p></div><button class="primary" id="guide-done">我看懂了，返回做题</button></section>`;
-    const back = () => renderHome();
+    const back = () => parent === 'analysis' ? renderAnalysisCenter(true) : renderHome();
     document.querySelector('#guide-back')?.addEventListener('click', back);
     document.querySelector('#guide-done')?.addEventListener('click', back);
     document.querySelectorAll('[data-guide-speak]').forEach(button => button.addEventListener('click', event => speakQuestion({q:button.dataset.guideSpeak,audioText:button.dataset.guideSpeak}, event.currentTarget)));
+    window.scrollTo(0,0);
+  }
+
+  function analysisOrder(question) {
+    const correct = Number(question?.answer || 0);
+    const others = [0,1,2,3].filter(index => index !== correct);
+    const target = Math.max(0, bank.findIndex(item => item.id === question.id)) % 4;
+    others.splice(target, 0, correct);
+    return others;
+  }
+
+  function analysisMatches(question, query) {
+    if (!query) return true;
+    const haystack = [question.q, ...(question.options || []), question.translation, question.point, question.explain, question.cat].join(' ').toLowerCase();
+    return haystack.includes(query.toLowerCase());
+  }
+
+  function renderAnalysisCenter(restoreScroll = false) {
+    leaveQuiz();
+    const records = readMastery();
+    const bankIndex = new Map(bank.map((question,index) => [question.id,index]));
+    const categories = [...new Set(bank.map(question => question.cat || '综合'))].sort((a,b) => a.localeCompare(b,'zh-CN'));
+    const base = bank.filter(question => (analysisView.category === '全部' || question.cat === analysisView.category) && analysisMatches(question, analysisView.query));
+    const filtered = base.filter(question => analysisView.status === '全部' || masteryStatus(records[question.id]) === analysisView.status).sort((a,b) => analysisStatusSort(a,b,records,bankIndex));
+    const pageCount = Math.max(1, Math.ceil(filtered.length / ANALYSIS_PAGE_SIZE));
+    analysisView.page = Math.max(0, Math.min(analysisView.page, pageCount - 1));
+    const pageRows = filtered.slice(analysisView.page * ANALYSIS_PAGE_SIZE, (analysisView.page + 1) * ANALYSIS_PAGE_SIZE);
+    const counts = {'不会':0,'错误':0,'易出错':0,'正确':0,'未学习':0};
+    base.forEach(question => { counts[masteryStatus(records[question.id])] += 1; });
+    const rowsHtml = pageRows.length ? pageRows.map((question,index) => {
+      const status = masteryStatus(records[question.id]);
+      const number = bankIndex.get(question.id) + 1;
+      return `<button class="analysis-row" data-analysis-id="${esc(question.id)}"><span><small>第 ${number} 题 · ${esc(question.cat || '综合')}</small><b>${esc(String(question.q || '').replace(/\s+/g,' ').slice(0,92))}</b><em>${esc(question.point || '查看完整解析')}</em></span><strong class="status-${status}">${status}</strong><i>›</i></button>`;
+    }).join('') : '<div class="analysis-empty"><b>没有找到符合条件的题目</b><p>请清空搜索词，或者切换分类和掌握状态。</p><button id="analysis-reset">清空筛选</button></div>';
+    app.innerHTML = `<header class="guide-header analysis-header"><button id="analysis-home" aria-label="返回首页">←</button><div><p class="eyebrow dark">零基础全题解析</p><h1>791题解析中心</h1><p>每题均有逐词、发音、结构和四个选项原因</p></div></header><section class="card analysis-tools"><form id="analysis-search"><label>搜索题目、单词或考点<input id="analysis-query" type="search" value="${esc(analysisView.query)}" placeholder="例如：some、过去时、Do they"></label><button>搜索</button></form><div class="analysis-filters"><label>题型<select id="analysis-category"><option>全部</option>${categories.map(category => `<option ${analysisView.category === category ? 'selected' : ''}>${esc(category)}</option>`).join('')}</select></label><label>掌握状态<select id="analysis-status">${['全部','不会','错误','易出错','正确','未学习'].map(status => `<option ${analysisView.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select></label></div><div class="status-summary">${Object.entries(counts).map(([status,count]) => `<span><b>${count}</b>${status}</span>`).join('')}</div><p class="hint compact">当前找到 ${filtered.length} 题 · 默认按“不会 → 错误 → 易出错 → 正确 → 未学习”排序</p><button class="secondary" id="analysis-go-guide">专项讲解：go 和 goes</button></section><section class="card analysis-list-card"><div class="section-head"><div><h2>${esc(analysisView.category === '全部' ? '全部题型' : analysisView.category)}</h2><p class="hint compact">第 ${analysisView.page + 1}/${pageCount} 页 · 本页 ${pageRows.length} 题</p></div><span>${filtered.length} 题</span></div><div class="analysis-list">${rowsHtml}</div>${filtered.length ? `<div class="analysis-pagination"><button id="analysis-prev" ${analysisView.page === 0 ? 'disabled' : ''}>上一页</button><span>${analysisView.page + 1} / ${pageCount}</span><button id="analysis-next" ${analysisView.page >= pageCount - 1 ? 'disabled' : ''}>下一页</button></div>` : ''}</section>`;
+    document.querySelector('#analysis-home').addEventListener('click', renderHome);
+    document.querySelector('#analysis-go-guide').addEventListener('click', () => renderGoGuide('analysis'));
+    document.querySelector('#analysis-search').addEventListener('submit', event => { event.preventDefault(); analysisView.query = document.querySelector('#analysis-query').value.trim(); analysisView.page = 0; analysisView.scrollY = 0; renderAnalysisCenter(); });
+    document.querySelector('#analysis-category').addEventListener('change', event => { analysisView.category = event.target.value; analysisView.page = 0; analysisView.scrollY = 0; renderAnalysisCenter(); });
+    document.querySelector('#analysis-status').addEventListener('change', event => { analysisView.status = event.target.value; analysisView.page = 0; analysisView.scrollY = 0; renderAnalysisCenter(); });
+    document.querySelector('#analysis-reset')?.addEventListener('click', () => { analysisView.query=''; analysisView.category='全部'; analysisView.status='全部'; analysisView.page=0; analysisView.scrollY=0; renderAnalysisCenter(); });
+    document.querySelector('#analysis-prev')?.addEventListener('click', () => { analysisView.page -= 1; analysisView.scrollY=0; renderAnalysisCenter(); });
+    document.querySelector('#analysis-next')?.addEventListener('click', () => { analysisView.page += 1; analysisView.scrollY=0; renderAnalysisCenter(); });
+    document.querySelectorAll('[data-analysis-id]').forEach(button => button.addEventListener('click', () => { analysisView.scrollY=window.scrollY; renderQuestionAnalysis(button.dataset.analysisId); }));
+    requestAnimationFrame(() => window.scrollTo(0, restoreScroll ? analysisView.scrollY : 0));
+  }
+
+  function renderQuestionAnalysis(id) {
+    leaveQuiz();
+    const question = find(id);
+    if (!question) return renderAnalysisCenter(true);
+    const records = readMastery();
+    const status = masteryStatus(records[id]);
+    const order = analysisOrder(question);
+    const similar = similarExample(question,id);
+    app.innerHTML = `<header class="guide-header"><button id="analysis-back" aria-label="返回题库解析中心">←</button><div><p class="eyebrow dark">第 ${bank.findIndex(item => item.id === id) + 1} / ${bank.length} 题 · ${esc(question.cat || '综合')}</p><h1>单题完整解析</h1><p>${status} · ${esc(question.difficulty || '基础')} · ${esc(question.sourceLabel || '原创仿真题')}</p></div></header><section class="card analysis-question-card"><div class="analysis-question-head"><span>${esc(question.point || question.cat || '综合')}</span><b class="status-${status}">${status}</b></div><div class="question">${esc(question.q)}</div><button class="secondary analysis-speak" id="analysis-speak">🔊 朗读题目英文</button>${question.translation ? `<div class="analysis-translation"><b>整句中文与提示</b><p>${esc(question.translation)}</p></div>` : ''}${wordHelpPanel(question,'本题全部单词')}${solutionPanel(question,order)}${similar ? `<div class="example-box"><b>同考点再看一题</b><p>${esc(similar.q)}</p><p><strong>答案：</strong>${esc(similar.options[similar.answer])}</p><p><strong>解析：</strong>${esc(similar.explain || similar.point)}</p></div>` : ''}</section><section class="card"><button class="primary" id="analysis-back-bottom">返回题库解析中心</button></section>`;
+    const back = () => renderAnalysisCenter(true);
+    document.querySelector('#analysis-back').addEventListener('click', back);
+    document.querySelector('#analysis-back-bottom').addEventListener('click', back);
+    document.querySelector('#analysis-speak').addEventListener('click', event => speakQuestion(question,event.currentTarget));
+    bindWordSpeech();
     window.scrollTo(0,0);
   }
 
@@ -467,10 +541,10 @@
     if (masteryCard) {
       const guideEntry = document.createElement('section');
       guideEntry.className = 'card guide-entry all-guide-entry';
-      guideEntry.innerHTML = '<div><span>零基础全题解析</span><h2>每一道题，都给你讲清楚</h2><p>逐个单词、中文和发音、句子结构、正确理由，以及 A–D 每项为什么选或不选。</p></div><div class="guide-actions"><button id="start-guided">开始解析练习</button><button class="guide-minor" id="open-go-guide">查看 go/goes 专项</button></div>';
+      guideEntry.innerHTML = `<div><span>零基础全题解析</span><h2>${bank.length}题，全部可以查解析</h2><p>搜索或按题型查找；每题都有逐词、中文和发音、句子结构，以及 A–D 每项原因。</p></div><div class="guide-actions"><button id="open-analysis-center">打开${bank.length}题解析中心</button><button class="guide-minor" id="start-guided">开始解析练习</button></div>`;
       masteryCard.before(guideEntry);
+      guideEntry.querySelector('#open-analysis-center')?.addEventListener('click', renderAnalysisCenter);
       guideEntry.querySelector('#start-guided')?.addEventListener('click', startPractice);
-      guideEntry.querySelector('#open-go-guide')?.addEventListener('click', renderGoGuide);
     }
     document.querySelectorAll('.task-list > div').forEach((row,index) => {
       const title = row.querySelector('strong');
@@ -795,7 +869,7 @@
     const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
     const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
     return JSON.stringify({
-      report: 'DEGREE-ENGLISH-WEB-V4.4',
+      report: 'DEGREE-ENGLISH-WEB-V4.5',
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
       mode: state.mode,
