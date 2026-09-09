@@ -1,6 +1,6 @@
-const CACHE = 'degree-english-sprint-v4.8';
+const CACHE = 'degree-english-sprint-v4.9';
 const ASSETS = [
-  './', './index.html', './styles.css?v=4.8', './app.js?v=4.8', './manifest.webmanifest', './assets/icon.png',
+  './', './index.html', './styles.css?v=4.9', './app.js?v=4.9', './manifest.webmanifest', './assets/icon.png',
   './data/word-groups.js', './data/learning-content-v3.js', './data/offline-question-bank-v731.js'
 ];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));

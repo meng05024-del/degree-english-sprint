@@ -1,4 +1,4 @@
-/* 学位英语考前冲刺站 v4.8：36节零基础小课与页码直达；本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4.9：零基础语法概念详解与页码直达；本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
@@ -72,6 +72,115 @@
   Object.assign(topicLessons.find(item => item.id === 'preposition'), {title:'时间介词 in / on / at',subtitle:'月、日期和几点分别怎么选'});
   Object.assign(topicLessons.find(item => item.id === 'reading'), {title:'句子翻译题',subtitle:'先对齐主语、动作、时间和肯否定',cats:['句子翻译'],goal:'翻译题不再逐字硬拼，而是先对齐句子骨架。',plain:'先找谁，再找做什么，然后检查时间、地点和肯定否定；四个位置都一致才可以选。',formula:['先对主语：谁','再对动作：做什么','最后对时间、地点和 not'],signals:'选项只要主语、时间或肯否定有一处冲突，就可以排除。',example:['“他们昨天没有去学校。”','他们＝they','昨天＝yesterday，使用过去','did not 后用动词原形 go'],answer:'They did not go to school yesterday.'});
 
+  const addGrammarLesson = ({id,title,subtitle,goal,plain,terms,formula,signals,example,answer,confusions,moreExamples,memory}) => {
+    const base = topicLessons.find(item => item.id === 'sentence');
+    topicLessons.push({...base,id,title,subtitle,goal,plain,terms,formula,signals,example,answer,confusions,moreExamples,memory,chapter:chapterNames.sentence});
+  };
+  addGrammarLesson({
+    id:'parts-vs-roles', title:'词性和句子成分不是一回事', subtitle:'动词是种类，谓语是工作岗位',
+    goal:'先分清“一个词本来是什么”和“它进句子后负责什么”，以后听课不再被术语绕晕。',
+    plain:'词性像一个人的职业类别：名词、动词、形容词、副词；句子成分像他今天在队伍里的岗位：主语、谓语、宾语、表语、定语、状语。同一个名词进入不同句子，可以当主语，也可以当宾语。',
+    terms:[['词性','词本身属于哪一类，不进句子也能判断','book 是名词，go 是动词'],['句子成分','这个词或词组在当前句子里负责什么','Tom 在 Tom likes tea 中作主语'],['动词','一种词性，表示动作或状态','work、go、like、be'],['谓语','句子成分，说明主语做什么、是什么或怎么样','works；is tired；can swim']],
+    formula:['先找句中真正说明“做什么/是什么/怎么样”的部分＝谓语','再问谓语前“谁/什么”＝主语','如果动作后还能问“谁/什么”＝宾语','名词、动词是词性；主语、谓语、宾语是句中岗位'],
+    signals:'题目问“是什么词”时答词性；问“在句中作什么”时答句子成分。',
+    example:['Tom likes English.','Tom 本身是名词，在这句中负责“谁”，所以作主语','likes 本身是动词，在这句中说明 Tom 做什么，所以作谓语','English 本身是名词，在这句中是喜欢的对象，所以作宾语'],
+    answer:'Tom＝名词/主语；likes＝动词/谓语；English＝名词/宾语。',
+    confusions:['“动词＝谓语”不完全对：动词是词性，谓语是岗位。简单句里动词常是谓语的核心。','She is tired 的完整谓语是 is tired；is 是谓语动词，tired 是表语。','一个词可以同时有“词性”和“句子成分”两张标签。'],
+    moreExamples:[['Books help me.','Books：名词，作主语；help：动词，作谓语；me：代词，作宾语。'],['I read books.','I：代词，作主语；read：动词，作谓语；books：名词，作宾语。'],['She is happy.','She：主语；is happy：谓语；happy：形容词，作表语。']],
+    memory:'词性回答“它是什么词”；句子成分回答“它在这句话里干什么”。'
+  });
+  addGrammarLesson({
+    id:'subject', title:'主语是什么', subtitle:'先找这句话在说谁或什么',
+    goal:'准确找到主语，并用主语决定 am/is/are、do/does、have/has 和动词是否加 s。',
+    plain:'主语是句子要说明的对象，常回答“谁？”或“什么？”。它通常位于陈述句开头，但疑问句中可能跟在助动词或 be 动词后。',
+    terms:[['主语','句子正在谈论的谁或什么','She works. 中的 She'],['人称代词主格','专门适合做主语的代词','I、you、he、she、it、we、they'],['名词主语','人名或事物名称也能做主语','Tom、my mother、the books'],['形式主语 there','There be 中 there 用来引出“有”','There are two books.']],
+    formula:['陈述句：主语通常在谓语前——She works.','一般疑问句：先越过 Do/Does/Is/Are/Can，再找主语','一个人名通常可换成 he 或 she；一个物可换成 it','多个事物通常可换成 they'],
+    signals:'选 am/is/are、do/does、have/has 之前，必须先圈出主语并判断单数还是复数。',
+    example:['Does Tom work here?','Does 是帮助提问的助动词，不是主语','Tom 是这句话询问的对象，所以 Tom 是主语','Tom 可换成 he，因此使用 Does'],
+    answer:'主语是 Tom；谓语核心是 work。',
+    confusions:['主语不一定是句子第一个词：Does she work? 的主语是 she。','介词后面的名词通常不是主语：on the desk 中 desk 不是主语。','命令句 Open the door. 常省略主语 you。'],
+    moreExamples:[['The boy plays football.','The boy 是主语，是“踢足球的人”。'],['My books are new.','My books 是主语，而且是复数，所以用 are。'],['Are they students?','Are 被提前，they 仍是主语。']],
+    memory:'先问“谁/什么在做、是、处于某状态”，答案通常就是主语。'
+  });
+  addGrammarLesson({
+    id:'predicate', title:'谓语是什么', subtitle:'一句话真正站得住的发动机',
+    goal:'找到谓语，并理解为什么英语完整句子通常不能没有谓语动词。',
+    plain:'谓语是用来说明主语“做什么、是什么、怎么样”的部分。谓语的核心一定与动词有关，它还负责表现时间、肯否定和语气。',
+    terms:[['谓语','对主语进行说明的句子成分','She works. 中的 works'],['谓语动词','谓语里的核心动词，会随主语或时态变化','work→works；go→went'],['复合谓语','由助动词/情态动词加主要动词组成','does not work；can swim'],['系表结构','be 动词连接主语和表语','She is happy.']],
+    formula:['动作句：主语 + 实义动词——She works.','状态句：主语 + be + 表语——She is tired.','否定句：主语 + 助动词 + not + 原形——She does not work.','情态句：主语 + can/will/must + 原形——She can swim.'],
+    signals:'找谓语时，先找会随时间或主语改变的动词部分；不要把地点、时间误当谓语。',
+    example:['She does not work here.','She 是主语','does not work 一起说明她“不工作”，是谓语','does 承担一般现在时和否定，work 恢复原形','here 只补充地点，是状语'],
+    answer:'完整谓语是 does not work；谓语里的主要动作是 work。',
+    confusions:['I happy 错，因为 happy 是形容词，不能独自充当谓语；要说 I am happy.','She can swims 错，can 已经是情态动词，后面用原形 swim。','谓语不一定只有一个单词：will go、is reading、does not like 都是谓语。'],
+    moreExamples:[['He went home.','went 是谓语，过去式同时告诉我们动作发生在过去。'],['They are students.','are students 是谓语部分；are 是系动词，students 是表语。'],['I am reading.','am reading 是现在进行时谓语。']],
+    memory:'一句话如果是机器，主语是主角，谓语就是让整句话运转起来的发动机。'
+  });
+  addGrammarLesson({
+    id:'object', title:'宾语是什么', subtitle:'动作落到谁或什么身上',
+    goal:'判断一个句子有没有宾语，并分清主语和宾语的人称形式。',
+    plain:'宾语是动作涉及、作用或指向的人或事物。先找到实义动词，再问“做什么？”或“对谁做？”，能回答出来的部分常是宾语。并不是每个句子都有宾语。',
+    terms:[['宾语','动作作用的对象','I like English. 中的 English'],['及物动词','后面可以直接带宾语的动词','like English、read books'],['不及物动词','通常不能直接带宾语','go、come、sleep'],['宾格','代词作宾语时使用的形式','me、him、her、us、them']],
+    formula:['I like English. → like 什么？English','She helps me. → helps 谁？me','He sleeps. → sleep 后没有动作对象，所以没有宾语','介词后也用宾格：with me、for him'],
+    signals:'先找动作，再向动作后面提问“谁/什么”；不要看到名词就一律叫宾语。',
+    example:['She gives me a book.','She 是做动作的人，作主语','gives 是谓语动词','me 是接受东西的人，叫间接宾语','a book 是被给予的东西，叫直接宾语'],
+    answer:'She＝主语；gives＝谓语；me 和 a book 都是宾语。',
+    confusions:['She is happy 没有宾语；happy 是表语，因为 is 不是“把动作做到 happy 上”。','go home 中 home 表示方向，不能简单当作 go 的宾语。','I like he 错，he 作宾语时应变为 him。'],
+    moreExamples:[['Tom reads books.','reads 什么？books，所以 books 是宾语。'],['They know her.','know 谁？her，所以 her 是宾语。'],['He arrived yesterday.','arrived 后没有动作对象；yesterday 是时间状语。']],
+    memory:'先找动作，再问“动作碰到了谁或什么”；能回答的才可能是宾语。'
+  });
+  addGrammarLesson({
+    id:'predicative', title:'表语是什么', subtitle:'放在 be 后说明主语身份或状态',
+    goal:'分清表语和宾语，不再把 is 后面的所有词叫宾语。',
+    plain:'表语跟在 be 等系动词后面，用来说明主语“是谁、是什么、怎么样、在哪里”。它不是动作承受者，而是在给主语补充身份、状态或特征。',
+    terms:[['表语','说明主语身份、性质或状态','She is happy. 中的 happy'],['系动词','连接主语和表语的动词','am、is、are、was、were'],['名词表语','说明主语是什么身份','He is a teacher.'],['形容词表语','说明主语怎么样','The book is new.']],
+    formula:['主语 + be + 名词：Tom is a student.','主语 + be + 形容词：Tom is busy.','主语 + be + 地点：Tom is at home.','be 像等号：Tom = a student；Tom = busy'],
+    signals:'看见 am/is/are/was/were，先问后面是在说明主语吗；如果是，通常是表语部分。',
+    example:['The books are new.','The books 是主语','are 是系动词','new 说明书怎么样','所以 new 是形容词作表语'],
+    answer:'are new 构成系表谓语；new 是表语，不是宾语。',
+    confusions:['I like English 中 English 是宾语，因为 like 是动作；I am Chinese 中 Chinese 是表语，因为 am 像等号。','表语可以是名词、形容词或地点短语，不只是一种词性。','be 动词有时表示“在”：The book is on the desk.'],
+    moreExamples:[['She is a nurse.','a nurse 说明她的身份，是名词作表语。'],['They are tired.','tired 说明他们的状态，是形容词作表语。'],['My bag is on the desk.','on the desk 说明包在哪里，是地点表语。']],
+    memory:'宾语是动作碰到的对象；表语是 be 后面给主语贴的“身份或状态标签”。'
+  });
+  addGrammarLesson({
+    id:'modifiers', title:'定语、状语和补语', subtitle:'它们都在补充信息，但补充的对象不同',
+    goal:'看到修饰成分时，知道它在说明名词、动作还是把意思补完整。',
+    plain:'定语专门修饰名词；状语说明动作发生的时间、地点、方式、频率或原因；补语把主语或宾语的意思补充完整。考试最常考的是定语位置和时间、地点状语。',
+    terms:[['定语','给名词加范围或特点','a new book 中的 new'],['状语','说明动作何时、何地、怎样、为什么发生','work at night 中的 at night'],['补语','补充说明主语或宾语，使意思完整','make me happy 中的 happy'],['修饰','给核心内容增加更具体的信息','my、new、quickly、yesterday']],
+    formula:['定语 + 名词：a good student、my book','动作 + 方式状语：speak slowly','动作 + 地点/时间：work here at night','动词 + 宾语 + 补语：make me happy'],
+    signals:'紧贴名词并回答“什么样/谁的”多为定语；回答“何时/何地/怎样”多为状语。',
+    example:['She reads English books every day.','She 是主语；reads 是谓语','English 修饰 books，说明哪类书，是定语','books 是 reads 的宾语','every day 说明什么时候读，是时间状语'],
+    answer:'English＝定语；every day＝时间状语。',
+    confusions:['形容词是词性，定语是岗位：new 是形容词，在 a new book 中作定语，在 The book is new 中作表语。','副词经常作状语，但介词短语也能作状语，如 at night。','考试做选择题时先抓主干，定语和状语暂时拿掉，句子仍应基本成立。'],
+    moreExamples:[['My old friend lives here.','My、old 都修饰 friend，作定语；here 是地点状语。'],['He speaks English well.','English 是宾语；well 说明怎样说，作方式状语。'],['We met on Monday.','on Monday 说明何时见面，作时间状语。']],
+    memory:'修饰名词的是定语；说明动作时间、地点、方式的是状语；把意思补完整的是补语。'
+  });
+  addGrammarLesson({
+    id:'verb-form', title:'动词原形和各种变化', subtitle:'go、goes、went、going、gone 的关系',
+    goal:'认出同一个动词的不同形式，并知道什么时候必须恢复原形。',
+    plain:'动词原形是词典里查到的基本形式。英语会改变动词外形来表达主语、时间或动作状态；变化后意思核心通常仍属于同一个动词。',
+    terms:[['动词原形','没有因主语或时态发生变化的基本形式','go、work、study、be'],['第三人称单数','一般现在时 he/she/it 后的形式','goes、works、studies'],['过去式','表示过去发生的动作','went、worked、studied'],['现在分词','常与 be 组成进行时','going、working、studying'],['过去分词','常用于完成时或被动语态','gone、worked、studied']],
+    formula:['does/did + 动词原形：Does she go? Did she go?','can/will/must/should + 动词原形：can go','一般现在时 he/she/it：go→goes','过去肯定句：go→went','be + -ing：is going'],
+    signals:'看到 does、did、will、can、must、should，立刻检查后一个动词是不是原形。',
+    example:['Did she ___ home yesterday?','Did 已经表示过去','后面的动作词不再变过去式','go 是原形；went 是过去式','所以填 go'],
+    answer:'Did she go home yesterday? 她昨天回家了吗？',
+    confusions:['Does he goes 错：does 已经承担第三人称变化，go 不能再加 es。','Did she went 错：did 已经承担过去时间，went 要恢复 go。','be 本身也是原形；am/is/are/was/were 都是 be 的变化。'],
+    moreExamples:[['She goes to work.','没有助动词，主语 she，所以 go 变 goes。'],['She will go to work.','will 后必须用原形 go。'],['She is going to work.','is + going 表示正在去或安排要去。']],
+    memory:'助动词或情态动词已经“穿上变化”，后面的实义动词就穿回原形。'
+  });
+  addGrammarLesson({
+    id:'sentence-patterns', title:'五种基础句型怎么看', subtitle:'先抓主干，再看修饰信息',
+    goal:'用五种骨架快速拆句，不再逐个单词硬翻。',
+    plain:'大多数基础英语句子都能先压缩成几个骨架。地点、时间、方式等修饰成分先放到一边，先确认主语和谓语是否完整。',
+    terms:[['主谓','主语自己完成动作，不带宾语','Birds fly.'],['主谓宾','动作作用到一个对象','I like English.'],['主系表','be 连接主语和身份/状态','She is happy.'],['双宾语','动作涉及“给谁什么”','He gave me a book.'],['宾语补足语','宾语后再补充说明宾语','The news made me happy.']],
+    formula:['主语 + 谓语：He sleeps.','主语 + 谓语 + 宾语：He reads books.','主语 + 系动词 + 表语：He is busy.','主语 + 谓语 + 间接宾语 + 直接宾语：He gave me a book.','主语 + 谓语 + 宾语 + 补语：It makes me happy.'],
+    signals:'先删掉时间、地点、频率等附加信息；剩下的主干通常能套入五种骨架之一。',
+    example:['My teacher gives us English lessons every day.','every day 是时间状语，先拿开','My teacher 是主语；gives 是谓语','us 是“给谁”，为间接宾语','English lessons 是“给什么”，为直接宾语'],
+    answer:'主语 + 谓语 + 双宾语；every day 是时间状语。',
+    confusions:['不是所有句子都有宾语：He sleeps. 已经完整。','be 后面通常找表语，不找宾语。','修饰语很长时先遮住，抓出主干后再逐个放回来。'],
+    moreExamples:[['The students study hard.','The students + study 是主谓；hard 是方式状语。'],['I have a new book.','I 主语；have 谓语；a new book 宾语；new 作定语。'],['The weather is very cold today.','The weather 主语；is very cold 谓语；cold 表语；today 时间状语。']],
+    memory:'先找谁，再找“做/是”，然后才看对象、身份、地点和时间。'
+  });
+
   addMicroLesson('sentence','noun','名词是什么','人、事物、地点和概念的名字','名词就是给人和事物起的名字，如 student、book、Beijing、English。',['人：student、teacher','物：book、water','地点：school、city'],['I have a book.','book 是一个事物的名字','所以 book 是名词'], 'book 是名词，在句中作 have 的宾语。','看到 a/an、this、my 后面，通常要接名词。');
   addMicroLesson('sentence','verb','动词和动词原形','go、goes、went 为什么是一家人','动词表示动作或状态；原形是词典里的基本样子，goes、went、going 都是 go 的变化。',['原形：go / have / work','三单：goes / has / works','过去：went / had / worked'],['He went home yesterday.','went 表示动作“去”','went 是 go 的过去式'], '动词是 went，原形是 go。','看到 does、did、will、can，后面使用动词原形。');
   addMicroLesson('sentence','adjective','形容词是什么','用来说明人或事物怎么样','形容词说明人或事物的性质，如 good、new、tired，常放在名词前或 be 动词后。',['形容词 + 名词：a new book','be + 形容词：She is tired.','very + 形容词：very good'],['The book is new.','book 是名词','new 说明书怎么样','所以 new 是形容词'], 'new 表示“新的”，是形容词。','看到 is/are 后的状态词，优先判断为形容词。');
@@ -96,6 +205,14 @@
   addMicroLesson('reading','reading-locate','阅读理解定位题','带着题干关键词回原文','阅读题先找题干中的人名、数字、时间或核心名词，再回原文定位对应句。',['圈题干关键词','回原文找到同词或近义词','只根据原文排除'],['题目问 Tom goes to work how?','先在原文找 Tom 和 work','对应句写 Tom goes by bus','因此选择 by bus'], 'Tom goes to work by bus.','先定位再理解，不凭生活常识选择。',['阅读理解']);
   addMicroLesson('reading','some-any','some 和 any','一些到底什么时候用','肯定句常用 some；否定句和一般疑问句常用 any。表示邀请或希望肯定回答时，疑问句也可能用 some。',['肯定：There are some books.','疑问：Are there any books?','否定：There are not any books.'],['Do you have ___ pens?','这是一般疑问句','通常使用 any'], 'Do you have any pens? 你有一些钢笔吗？','先看肯定、否定还是疑问，再判断 some/any。',['核心词汇','疑问句']);
   addMicroLesson('reading','there-be','There be 句型','某地有某物','There is/are 表示“某地存在某物”，后面的名词决定 is 还是 are。',['There is + 单数/不可数','There are + 复数','地点通常放句尾'],['There ___ two books on the desk.','two books 是复数','复数使用 are'], 'There are two books on the desk. 桌上有两本书。','不要被 there 迷惑，真正决定 is/are 的是后面名词。',['be动词','疑问句']);
+
+  const lessonDetails = {
+    noun:{terms:[['名词','人、事物、地点或概念的名称','teacher、book、Beijing、English'],['普通名词','一类人或事物的通用名称','student、city、water'],['专有名词','特定名称，首字母通常大写','Tom、China、Monday'],['可数名词','可以直接数一个、两个','a book、two books'],['不可数名词','通常不能直接用数字数','water、information']],confusions:['名词是词性；名词可以在句中作主语、宾语或表语。','a、an、the、my、this 后面常需要名词，但中间可能夹形容词：a new book。'],moreExamples:[['Books are useful.','Books 是名词，在句中作主语。'],['I read books.','books 是名词，在句中作宾语。'],['Tom is a student.','student 是名词，在句中作表语。']],memory:'能给人、事物、地点、概念“起名字”的词，通常就是名词。'},
+    verb:{terms:[['动词','表示动作、状态或存在的词','go、work、like、be'],['实义动词','本身有明确动作或含义','read 读、have 有、know 知道'],['be 动词','表示是、在或状态，并连接表语','am、is、are、was、were'],['助动词','帮助构成问句、否定句或时态','do、does、did、have、will'],['情态动词','表达能、会、必须、应该','can、may、must、should']],confusions:['动词是词性，谓语是句子岗位；谓语的核心通常是动词。','同一个词可能有多种形式：go、goes、went、going。','does/did/can/will 后面必须用动词原形。'],moreExamples:[['She works here.','works 是实义动词，也是本句谓语。'],['She is busy.','is 是 be 动词；is busy 一起构成谓语。'],['Does she work?','does 是助动词，work 是实义动词原形。']],memory:'看到一个词能表达“做、是、在、拥有、想法或状态”，先考虑它是不是动词。'},
+    adjective:{terms:[['形容词','说明人或事物“什么样”','good、new、tired、important'],['定语用法','放在名词前直接修饰名词','a new book'],['表语用法','放在 be 等系动词后说明主语','The book is new.'],['比较级','比较两者时使用的形式','bigger、more important']],confusions:['形容词是词性；它在句中常作定语或表语。','形容词一般不能独自作谓语：She happy 错，应为 She is happy.','very 后面常接形容词或副词，但 very 本身不是形容词。'],moreExamples:[['She is a good student.','good 修饰名词 student，作定语。'],['The student is good.','good 放在 is 后说明 student，作表语。'],['This question is difficult.','difficult 是形容词，表示“困难的”。']],memory:'形容词负责回答“什么样”，放名词前作定语，放 be 后常作表语。'},
+    adverb:{terms:[['副词','修饰动词、形容词、副词或整句话','quickly、very、often、yesterday'],['方式副词','说明动作怎样发生','speak slowly'],['频率副词','说明动作多久发生一次','always、often、sometimes'],['时间副词','说明动作何时发生','today、yesterday、now'],['程度副词','说明程度大小','very good、too fast']],confusions:['副词是词性；副词在句中经常作状语。','often 通常放实义动词前、be 动词后：often go / is often late。','形容词修饰名词；副词通常不直接修饰名词。'],moreExamples:[['He runs quickly.','quickly 修饰 runs，说明怎样跑。'],['She is very kind.','very 修饰形容词 kind，说明程度。'],['They often study at night.','often 是频率副词；at night 是时间状语。']],memory:'副词常回答“怎样、何时、多久一次、到什么程度”。'}
+  };
+  Object.entries(lessonDetails).forEach(([id,details]) => Object.assign(topicLessons.find(item => item.id === id), details));
 
   topicLessons.sort((a,b) => Object.keys(chapterNames).indexOf(a.chapter ? Object.keys(chapterNames).find(key => chapterNames[key] === a.chapter) : a.id) - Object.keys(chapterNames).indexOf(b.chapter ? Object.keys(chapterNames).find(key => chapterNames[key] === b.chapter) : b.id));
   topicLessons.forEach((lesson,index) => { lesson.order = index + 1; });
@@ -343,7 +460,7 @@
 
   function exportArchive() {
     const payload = JSON.stringify({
-      archive:'DEGREE-ENGLISH-WEB-V4.8',
+      archive:'DEGREE-ENGLISH-WEB-V4.9',
       exportedAt:nowIso(),
       state:readState(),
       history:readHistory(),
@@ -365,7 +482,7 @@
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result));
-        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3','DEGREE-ENGLISH-WEB-V4.4','DEGREE-ENGLISH-WEB-V4.5','DEGREE-ENGLISH-WEB-V4.6','DEGREE-ENGLISH-WEB-V4.7','DEGREE-ENGLISH-WEB-V4.8'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
+        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3','DEGREE-ENGLISH-WEB-V4.4','DEGREE-ENGLISH-WEB-V4.5','DEGREE-ENGLISH-WEB-V4.6','DEGREE-ENGLISH-WEB-V4.7','DEGREE-ENGLISH-WEB-V4.8','DEGREE-ENGLISH-WEB-V4.9'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
         if (!confirm('导入会用文件中的学习档案替换当前网页版记录，确定继续吗？')) return;
         if (payload.state) localStorage.setItem(STATE_KEY, JSON.stringify(payload.state));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
@@ -547,10 +664,13 @@
     const termRows = lesson.terms.map(([term,meaning,example]) => `<div><b>${esc(term)}</b><span>${esc(meaning)}</span><small>${esc(example)}</small></div>`).join('');
     const formulaRows = lesson.formula.map((row,index) => `<p><b>${index + 1}</b><span>${esc(row)}</span></p>`).join('');
     const exampleRows = lesson.example.map((row,index) => `<li><b>${index === 0 ? '题目' : `第${index}步`}</b><span>${esc(row)}</span></li>`).join('');
+    const confusionRows = (lesson.confusions || []).map(row => `<li>${esc(row)}</li>`).join('');
+    const extraExampleRows = (lesson.moreExamples || []).map(([sentence,analysis]) => `<article><b>${esc(sentence)}</b><p>${esc(analysis)}</p></article>`).join('');
+    const detailSections = `${confusionRows ? `<section class="card lesson-card"><div class="lesson-label">零基础最容易卡住的地方</div><h2>这些概念不要混在一起</h2><ul class="lesson-confusions">${confusionRows}</ul></section>` : ''}${extraExampleRows ? `<section class="card lesson-card"><div class="lesson-label">换句子也能认出来</div><h2>再拆几句给你看</h2><div class="lesson-extra-examples">${extraExampleRows}</div>${lesson.memory ? `<div class="lesson-memory"><b>最后只记这一句</b><span>${esc(lesson.memory)}</span></div>` : ''}</section>` : ''}`;
     const isDone = Boolean(progress[id]?.completedAt);
     const active = migrateState(readState());
     const practiceLabel = active && !active.finishedAt ? `先继续未完成的“${esc(active.title)}”` : '开始 5 题同类练习';
-    app.innerHTML = `<header class="guide-header topic-header"><button id="topic-back" aria-label="返回题型课">←</button><div><p class="eyebrow dark">第 ${lesson.order}/${topicLessons.length} 课 · ${esc(lesson.chapter)} · ${lesson.cats.map(esc).join(' / ')}</p><h1>${esc(lesson.title)}</h1><p>${esc(lesson.subtitle)}</p></div></header><section class="card lesson-lead"><span>学完能解决什么</span><h2>${esc(lesson.goal)}</h2><p>${esc(lesson.plain)}</p></section><section class="card lesson-card"><div class="lesson-label">先把术语翻成大白话</div><h2>这几个词是什么意思</h2><div class="term-list">${termRows}</div></section><section class="card lesson-card"><div class="lesson-label">考场判断顺序</div><h2>只按这几步做</h2><div class="lesson-formulas">${formulaRows}</div><div class="lesson-signal"><b>看到什么先反应：</b>${esc(lesson.signals)}</div></section><section class="card lesson-card"><div class="lesson-label">老师带着做一题</div><h2>不要直接背答案</h2><ol class="worked-example">${exampleRows}</ol><div class="lesson-answer"><b>最后答案</b><span>${esc(lesson.answer)}</span></div></section><section class="card lesson-actions"><button class="secondary" id="lesson-understood">${isDone ? '✓ 已学过这课' : '我看懂了，标记已学'}</button><button class="primary" id="lesson-practice">${practiceLabel}</button><p>练习中仍可展开逐词解释和逐步解题；答错后会进入重点复习。</p></section>`;
+    app.innerHTML = `<header class="guide-header topic-header"><button id="topic-back" aria-label="返回题型课">←</button><div><p class="eyebrow dark">第 ${lesson.order}/${topicLessons.length} 课 · ${esc(lesson.chapter)} · ${lesson.cats.map(esc).join(' / ')}</p><h1>${esc(lesson.title)}</h1><p>${esc(lesson.subtitle)}</p></div></header><section class="card lesson-lead"><span>学完能解决什么</span><h2>${esc(lesson.goal)}</h2><p>${esc(lesson.plain)}</p></section><section class="card lesson-card"><div class="lesson-label">先把术语翻成大白话</div><h2>这几个词是什么意思</h2><div class="term-list">${termRows}</div></section><section class="card lesson-card"><div class="lesson-label">考场判断顺序</div><h2>只按这几步做</h2><div class="lesson-formulas">${formulaRows}</div><div class="lesson-signal"><b>看到什么先反应：</b>${esc(lesson.signals)}</div></section><section class="card lesson-card"><div class="lesson-label">老师带着做一题</div><h2>不要直接背答案</h2><ol class="worked-example">${exampleRows}</ol><div class="lesson-answer"><b>最后答案</b><span>${esc(lesson.answer)}</span></div></section>${detailSections}<section class="card lesson-actions"><button class="secondary" id="lesson-understood">${isDone ? '✓ 已学过这课' : '我看懂了，标记已学'}</button><button class="primary" id="lesson-practice">${practiceLabel}</button><p>练习中仍可展开逐词解释和逐步解题；答错后会进入重点复习。</p></section>`;
     document.querySelector('#topic-back').onclick = renderTopicCourses;
     document.querySelector('#lesson-understood').onclick = event => {
       const latest = readCourseProgress();
@@ -1103,7 +1223,7 @@
     const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
     const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
     return JSON.stringify({
-      report: 'DEGREE-ENGLISH-WEB-V4.8',
+      report: 'DEGREE-ENGLISH-WEB-V4.9',
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
       mode: state.mode,
