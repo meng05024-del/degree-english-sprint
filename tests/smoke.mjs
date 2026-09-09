@@ -38,6 +38,8 @@ try {
   assert.equal(contentAudit.blankTranslations,0);
   assert.equal(contentAudit.badListening,0);
   assert.equal(contentAudit.malformedOptions,0);
+  assert.equal(await page.locator('#start-guided').count(),1);
+  assert.match(await page.locator('.all-guide-entry').innerText(),/每一道题[\s\S]*逐个单词[\s\S]*A–D/);
   assert.equal(await page.locator('#open-go-guide').count(),1);
   await page.locator('#open-go-guide').click();
   assert.match(await page.locator('.guide-header h1').innerText(),/go 和 goes/);
@@ -165,6 +167,12 @@ try {
   assert.match(await page.locator('.result-hero h1').innerText(), /100 分/);
   assert.match(await page.locator('body').innerText(), /本套需巩固 1 道/);
   assert.match(await page.locator('body').innerText(), /答对但不确定/);
+  await page.locator('#show-all-analysis').click();
+  assert.equal(await page.locator('#all-analysis .all-question').count(),50);
+  assert.equal(await page.locator('#all-analysis .solution-panel').count(),50);
+  assert.equal(await page.locator('#all-analysis .word-panel').count(),50);
+  await page.locator('#all-analysis .all-question').first().click();
+  assert.match(await page.locator('#all-analysis .all-question').first().innerText(),/你的答案[\s\S]*本题全部单词[\s\S]*逐步解题/);
   await page.locator('.wrong-item').first().click();
   assert.equal(await page.locator('.example-box').count(),1);
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('degree_english_50_quiz_history_v2')).length), 1);
@@ -202,7 +210,7 @@ try {
   assert.equal(wrongAudit.history,2);
   assert.equal(wrongAudit.wrong,50);
   assert.equal(wrongAudit.all,50);
-  assert.equal(wrongAudit.version,'DEGREE-ENGLISH-WEB-V4.3');
+  assert.equal(wrongAudit.version,'DEGREE-ENGLISH-WEB-V4.4');
   assert.equal(wrongAudit.complete,true);
   assert.equal(wrongAudit.fullComplete,true);
   assert.ok(wrongAudit.bytes<250000);

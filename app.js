@@ -1,4 +1,4 @@
-/* 学位英语考前冲刺站 v4.3：本地优先，不主动上传学习记录。 */
+/* 学位英语考前冲刺站 v4.4：本地优先，不主动上传学习记录。 */
 (() => {
   'use strict';
 
@@ -272,7 +272,7 @@
 
   function exportArchive() {
     const payload = JSON.stringify({
-      archive:'DEGREE-ENGLISH-WEB-V4.3',
+      archive:'DEGREE-ENGLISH-WEB-V4.4',
       exportedAt:nowIso(),
       state:readState(),
       history:readHistory(),
@@ -292,7 +292,7 @@
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result));
-        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
+        if (!['DEGREE-ENGLISH-WEB-V3','DEGREE-ENGLISH-WEB-V4','DEGREE-ENGLISH-WEB-V4.1','DEGREE-ENGLISH-WEB-V4.2','DEGREE-ENGLISH-WEB-V4.3','DEGREE-ENGLISH-WEB-V4.4'].includes(payload.archive) || !Array.isArray(payload.history) || typeof payload.mastery !== 'object') throw new Error('格式不正确');
         if (!confirm('导入会用文件中的学习档案替换当前网页版记录，确定继续吗？')) return;
         if (payload.state) localStorage.setItem(STATE_KEY, JSON.stringify(payload.state));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(payload.history.slice(0,10)));
@@ -466,9 +466,10 @@
     const masteryCard = document.querySelector('.mastery-grid')?.closest('.card');
     if (masteryCard) {
       const guideEntry = document.createElement('section');
-      guideEntry.className = 'card guide-entry';
-      guideEntry.innerHTML = '<div><span>零基础语法急救 01</span><h2>go 和 goes 到底怎么选？</h2><p>从主语、does/did、时间词到固定搭配，一页讲清楚。</p></div><button id="open-go-guide">打开讲解</button>';
+      guideEntry.className = 'card guide-entry all-guide-entry';
+      guideEntry.innerHTML = '<div><span>零基础全题解析</span><h2>每一道题，都给你讲清楚</h2><p>逐个单词、中文和发音、句子结构、正确理由，以及 A–D 每项为什么选或不选。</p></div><div class="guide-actions"><button id="start-guided">开始解析练习</button><button class="guide-minor" id="open-go-guide">查看 go/goes 专项</button></div>';
       masteryCard.before(guideEntry);
+      guideEntry.querySelector('#start-guided')?.addEventListener('click', startPractice);
       guideEntry.querySelector('#open-go-guide')?.addEventListener('click', renderGoGuide);
     }
     document.querySelectorAll('.task-list > div').forEach((row,index) => {
@@ -661,6 +662,16 @@
     return `<details class="solution-panel"><summary>我还是不会：看逐步解题（会显示答案）</summary><div class="solve-steps"><p><b>① 先认题型：</b>${esc(questionCue(question))}</p><p><b>② 再抓考点：</b>${esc(question.point || question.cat || '句意与上下文')}</p><p class="correct-answer"><b>③ 所以选择 ${'ABCD'[correctPosition]}：</b>${esc(question.options[question.answer])}</p></div><ol class="option-reasons">${rows}</ol></details>`;
   }
 
+  function wordHelpPanel(question, label = '逐个单词解释') {
+    const words = questionWords(question);
+    if (!words.length) return '';
+    return `<details class="word-panel"><summary>${esc(label)}（${words.length}个，一次看全）</summary><p class="word-intro">辅助读法只帮助入门，以右侧英文播放为准。</p><div class="word-list">${words.map(word => `<div><span><b>${esc(word.surface)}</b>${word.surface.toLowerCase() !== word.en.toLowerCase() ? `<small>原形：${esc(word.en)}</small>` : ''}</span><span>${esc(word.cn)}${word.form ? `<small>${esc(word.form)}</small>` : ''}</span><span>${esc(word.read)}</span><button data-word-speak="${esc(word.surface)}" aria-label="朗读 ${esc(word.surface)}">🔊</button></div>`).join('')}</div></details>`;
+  }
+
+  function bindWordSpeech(root = document) {
+    root.querySelectorAll('[data-word-speak]').forEach(button => button.addEventListener('click', event => speakQuestion({q:button.dataset.wordSpeak,audioText:button.dataset.wordSpeak}, event.currentTarget)));
+  }
+
   function renderQuiz(inputState) {
     leaveQuiz();
     const state = migrateState(inputState);
@@ -679,9 +690,8 @@
     const options = order.map((originalIndex, displayedIndex) => `<button class="option ${chosenOriginalIndex === originalIndex ? 'selected' : ''}" data-original-index="${originalIndex}"><b>${'ABCD'[displayedIndex]}</b><span>${esc(q.options[originalIndex])}</span></button>`).join('');
     const done = state.questionIds.filter(id => state.answers[id] !== undefined || state.unknowns[id]).length;
     const dots = state.questionIds.map((id, index) => `<button class="dot ${index === state.index ? 'active' : ''} ${state.unknowns[id] ? 'unknown' : state.answers[id] !== undefined ? 'done' : ''}" data-go="${index}">${index + 1}</button>`).join('');
-    const words = questionWords(q);
     const showAids = state.mode !== 'simulation';
-    const wordHelp = showAids && words.length ? `<details class="word-panel"><summary>逐个单词解释（${words.length}个，一次看全）</summary><p class="word-intro">辅助读法只帮助入门，以右侧英文播放为准。</p><div class="word-list">${words.map(word => `<div><span><b>${esc(word.surface)}</b>${word.surface.toLowerCase() !== word.en.toLowerCase() ? `<small>原形：${esc(word.en)}</small>` : ''}</span><span>${esc(word.cn)}${word.form ? `<small>${esc(word.form)}</small>` : ''}</span><span>${esc(word.read)}</span><button data-word-speak="${esc(word.surface)}" aria-label="朗读 ${esc(word.surface)}">🔊</button></div>`).join('')}</div></details>` : '';
+    const wordHelp = showAids ? wordHelpPanel(q) : '';
     const learningTools = showAids ? `<div class="question-tools"><button id="speak">🔊 朗读英文</button>${q.translation ? `<details class="translation"><summary>中 查看中文与提示</summary><div>${esc(q.translation)}</div></details>` : ''}</div>${wordHelp}${solutionPanel(q, order)}` : '<p class="simulation-note">模拟测评已关闭中文、逐词解释和朗读辅助，交卷后可查看解析。</p>';
     app.innerHTML = `<div class="top"><div><p class="eyebrow dark">${esc(modeLabel(state.mode))}</p><h1>${state.index + 1}/${total} · ${esc(q.cat || '综合')}</h1></div><button id="home">暂存退出</button></div><section class="card quiz-card"><div class="progress"><i style="width:${((state.index + 1) / total * 100).toFixed(1)}%"></i></div><div class="meta"><span>${esc(q.difficulty || '基础')} · ${state.mode === 'simulation' ? '真实作答' : '可用学习辅助'}</span><span id="elapsed">${formatTime(state.elapsedSec)}</span></div><div class="question">${esc(q.q)}</div>${learningTools}<button class="unknown-button ${state.unknowns[q.id] ? 'selected' : ''}" id="unknown">${state.unknowns[q.id] ? '✓ 已标记：不确定或不会' : '？不确定或不会，加入重点复习'}</button><div class="options">${options}</div><div class="nav"><button id="prev" ${state.index === 0 ? 'disabled' : ''}>上一题</button><button class="next" id="next">${state.index === total - 1 ? '检查并交卷' : '保存并到下一题'}</button></div><details class="answer-sheet"><summary>打开答题卡 · 已完成 ${done}/${total}</summary><div class="grid">${dots}</div></details><p class="save">答案与当前题号已自动保存，可随时退出后继续</p></section>`;
     startTimer(state);
@@ -696,7 +706,7 @@
       if (!state.unknowns[q.id]) delete state.unknowns[q.id];
       saveState(state); renderQuiz(state);
     });
-    document.querySelectorAll('[data-word-speak]').forEach(button => button.addEventListener('click', event => speakQuestion({q:button.dataset.wordSpeak,audioText:button.dataset.wordSpeak}, event.currentTarget)));
+    bindWordSpeech();
     document.querySelector('#prev').addEventListener('click', () => { state.index -= 1; saveState(state); renderQuiz(state); });
     document.querySelector('#next').addEventListener('click', () => {
       if (state.index < total - 1) {
@@ -785,7 +795,7 @@
     const stableCorrect = items.filter(item => item.answerCorrect && !item.unknown).length;
     const uncertainCorrect = items.filter(item => item.answerCorrect && item.unknown).length;
     return JSON.stringify({
-      report: 'DEGREE-ENGLISH-WEB-V4.3',
+      report: 'DEGREE-ENGLISH-WEB-V4.4',
       sessionId: state.sessionId,
       sequenceNo: state.sequenceNo,
       mode: state.mode,
@@ -857,9 +867,25 @@
       const exampleHtml = example ? `<div class="example-box"><b>同考点例题</b><p>${esc(example.q)}</p><p><strong>答案：</strong>${esc(example.options[example.answer])}</p><p><strong>解析：</strong>${esc(example.explain || example.point)}</p></div>` : '';
       return `<details class="wrong-item"><summary><span>第 ${item.n} 题 · ${esc(item.q?.cat || '综合')}</span><strong>${item.unknown && item.answerCorrect ? '答对但不确定' : item.unknown ? '不会' : `${item.selectedLetter} → ${item.correctLetter}`}</strong></summary><div><p class="wrong-question">${esc(item.q?.q)}</p><p><b>你的答案：</b>${esc(item.selectedOriginal === undefined ? '未选择' : item.q.options[item.selectedOriginal])}${item.unknown ? '（标记不确定或不会）' : ''}</p><p><b>正确答案：</b>${esc(item.q?.options?.[item.q?.answer] || '')}</p><p><b>具体考点：</b>${esc(item.q?.point || item.q?.cat || '综合')}</p><p><b>为什么：</b>${esc(item.q?.explain || item.q?.point || '请把报告发给我进一步讲解。')}</p><p><b>排除提示：</b>其余选项不符合上面的语法规则、词义或上下文；先找主语、时间词和固定搭配，再决定答案。</p>${exampleHtml}</div></details>`;
     }).join('') : `<div class="success-box">${total} 题全部稳定答对，可以进入下一轮抽查。</div>`;
-    app.innerHTML = `<section class="hero result-hero"><p class="eyebrow">${esc(modeLabel(state.mode))}完成</p><h1>${score} 分${delta === null ? '' : ` · 比上次${delta >= 0 ? '高' : '低'} ${Math.abs(delta)} 分`}</h1><p>考试分只看答案；掌握度会另外识别“不确定但答对”的危险题。</p></section><section class="card result-card"><div class="result-metrics"><div><b>${score}</b><span>考试得分</span></div><div><b>${masteryRate}%</b><span>稳定掌握</span></div><div><b>${uncertainCorrect}</b><span>答对但不确定</span></div><div><b>${total - correct}</b><span>答错</span></div></div><p class="hint">确定答对 ${stableCorrect} · 用时 ${formatTime(state.elapsedSec || 0)}</p>${wrong.length ? '<button class="primary" id="reinforce">先把本次丢分点抢回来</button>' : ''}<button class="secondary" id="copy">复制完整报告，发给我逐题讲</button><button class="secondary" id="download">下载完整答题报告</button></section><section class="card"><div class="section-head"><div><h2>最需要先救的 ${weakest.length} 项</h2><p class="hint compact">按需复习题数和正确率排序</p></div></div><div class="weak-list">${weakHtml}</div></section><section class="card"><div class="section-head"><div><h2>本套需巩固 ${wrong.length} 道</h2></div></div><p class="hint">包含答错、未答及“答对但标记不确定”的题，默认折叠。</p><div class="wrong-list">${wrongHtml}</div></section><section class="card"><button class="secondary" id="new">再做一套模拟测评</button><button class="secondary" id="home">返回首页看今日任务</button></section>`;
+    app.innerHTML = `<section class="hero result-hero"><p class="eyebrow">${esc(modeLabel(state.mode))}完成</p><h1>${score} 分${delta === null ? '' : ` · 比上次${delta >= 0 ? '高' : '低'} ${Math.abs(delta)} 分`}</h1><p>考试分只看答案；掌握度会另外识别“不确定但答对”的危险题。</p></section><section class="card result-card"><div class="result-metrics"><div><b>${score}</b><span>考试得分</span></div><div><b>${masteryRate}%</b><span>稳定掌握</span></div><div><b>${uncertainCorrect}</b><span>答对但不确定</span></div><div><b>${total - correct}</b><span>答错</span></div></div><p class="hint">确定答对 ${stableCorrect} · 用时 ${formatTime(state.elapsedSec || 0)}</p>${wrong.length ? '<button class="primary" id="reinforce">先把本次丢分点抢回来</button>' : ''}<button class="secondary" id="show-all-analysis">查看本套全部 ${total} 题详细解析</button><button class="secondary" id="copy">复制完整报告（需要时发给我）</button><button class="secondary" id="download">下载完整答题报告</button></section><section class="card all-analysis-card" id="all-analysis" hidden><div class="section-head"><div><h2>本套全部 ${total} 题解析</h2><p class="hint compact">答对和答错都能看；逐词、结构和每个选项原因均可展开。</p></div><span>${total} 题</span></div><div class="all-analysis-list"></div></section><section class="card"><div class="section-head"><div><h2>最需要先救的 ${weakest.length} 项</h2><p class="hint compact">按需复习题数和正确率排序</p></div></div><div class="weak-list">${weakHtml}</div></section><section class="card"><div class="section-head"><div><h2>本套需巩固 ${wrong.length} 道</h2></div></div><p class="hint">包含答错、未答及“答对但标记不确定”的题，默认折叠。</p><div class="wrong-list">${wrongHtml}</div></section><section class="card"><button class="secondary" id="new">再做一套模拟测评</button><button class="secondary" id="home">返回首页看今日任务</button></section>`;
     const reinforceButton = document.querySelector('#reinforce');
     if (reinforceButton) reinforceButton.textContent = total - correct > 0 ? '先把本次丢分点抢回来' : '先把本次不稳项练扎实';
+    document.querySelector('#show-all-analysis').addEventListener('click', event => {
+      const section = document.querySelector('#all-analysis');
+      const list = section.querySelector('.all-analysis-list');
+      if (!list.childElementCount) {
+        list.innerHTML = items.map(item => {
+          const order = state.optionOrders[item.id] || [0,1,2,3];
+          const status = item.answerCorrect ? (item.unknown ? '答对但不确定' : '答对') : '答错';
+          return `<details class="all-question ${item.answerCorrect ? 'is-correct' : 'is-wrong'}"><summary><span>第 ${item.n} 题 · ${esc(item.q?.cat || '综合')}</span><b>${status}</b></summary><div><p class="wrong-question">${esc(item.q?.q || '')}</p><p><strong>你的答案：</strong>${esc(item.selectedOriginal === undefined ? '未选择' : item.q.options[item.selectedOriginal])}</p>${wordHelpPanel(item.q, '本题全部单词')}${solutionPanel(item.q, order)}</div></details>`;
+        }).join('');
+        bindWordSpeech(list);
+      }
+      section.hidden = false;
+      event.currentTarget.textContent = `已展开本套全部 ${total} 题解析`;
+      event.currentTarget.disabled = true;
+      section.scrollIntoView({behavior:'smooth',block:'start'});
+    });
     document.querySelector('#copy').addEventListener('click', () => copyText(report, `第 ${state.sequenceNo} 套错题报告已复制。回到聊天直接粘贴即可。`));
     document.querySelector('#download').addEventListener('click', () => {
       const url = URL.createObjectURL(new Blob([report], {type:'application/json'}));
